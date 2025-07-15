@@ -11,11 +11,12 @@ def main():
 
     win = QWidget()
     win.setWindowTitle("Laser Cooling App")
-    win.resize(400, 300)
+    win.resize(400, 400)
     layout = QVBoxLayout()
     tab_widget = QTabWidget()
 
     laser_widget = LaserControlWidget()
+    # laser_widget.setFixedWidth(400)
     powermeter_widget = OphirPowerMeterWidget()
 
     tab_widget.addTab(laser_widget, "Laser Control")

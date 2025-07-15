@@ -17,17 +17,24 @@ class OphirPowerMeterWidget(QGroupBox):
 
         # UI Elements
         self.scan_usb_btn = QPushButton("Scan USB")
-        self.scan_usb_btn.clicked.connect(self.scanUSB)
-
+        self.scan_usb_btn.clicked.connect(self.scan_usb)
         self.device_select_combo = QComboBox()
-
         self.connect_btn = QPushButton("Connect")
+        self.connect_btn.clicked.connect(self.toggle_connection)
+
+        self.range_select_combo = QComboBox()
+        self.range_select_combo.currentIndexChanged.connect(self.change_range)
+
+        self.wavelength_select_combo = QComboBox()
+        self.wavelength_select_combo.currentIndexChanged.connect(self.change_wavelength)
 
 
         self.power_label = QLabel("0.00")
+        self.power_label.setAlignment(Qt.AlignmentFlag.AlignRight)
         unit_label = QLabel("W")
+        unit_label.setAlignment(Qt.AlignmentFlag.AlignLeft)
         font = QFont()
-        font.setPointSize(24)
+        font.setPointSize(48)
         font.setBold(True)
         self.power_label.setFont(font)
         self.power_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -43,6 +50,11 @@ class OphirPowerMeterWidget(QGroupBox):
         scan_usb_form.addRow(self.connect_btn)
         layout.addLayout(scan_usb_form)
 
+        setting_form = QFormLayout()
+        setting_form.addRow("Range Selection:", self.range_select_combo)
+        setting_form.addRow("Wavelength Selection:", self.wavelength_select_combo)
+        layout.addLayout(setting_form)
+
         power_hbox = QHBoxLayout()
         power_hbox.addWidget(self.power_label)
         power_hbox.addWidget(unit_label)
@@ -51,5 +63,22 @@ class OphirPowerMeterWidget(QGroupBox):
         self.setLayout(layout)
     
 
-    def scanUSB(self):
+    def scan_usb(self):
+        """
+        get usb devices and update combo box
+        """
         pass
+
+
+    def toggle_connection(self):
+        pass
+
+
+    def change_range(self):
+        pass
+
+
+    def change_wavelength(self):
+        pass
+
+    
