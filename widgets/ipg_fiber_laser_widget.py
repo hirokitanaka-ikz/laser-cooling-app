@@ -3,8 +3,14 @@ from PyQt6.QtWidgets import (
     QDoubleSpinBox, QMessageBox, QLineEdit, QFormLayout
 )
 from PyQt6.QtCore import Qt, QTimer
+from devices.ipg_ylr_laser_controller import IPGYLRLaserController, LaserStatus
+import logging
 
-from devices.ipg_ylr_laser_controller import IPGYLRLaserController
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+
+IP = "10.10.10.20"
+PORT = "10001"
 
 
 class LaserControlWidget(QGroupBox):
@@ -12,14 +18,14 @@ class LaserControlWidget(QGroupBox):
     def __init__(self, parent=None):
         super().__init__("IPG Fiber Laser Control", parent)
 
-        self.controller = None
+        self.controller = IPGYLRLaserController()
         self.timer = QTimer(self)
         self.timer.setInterval(1000)
         self.timer.timeout.connect(self.update_status)
 
         # Connection input fields
-        self.ip_edit = QLineEdit("192.168.0.100")
-        self.port_edit = QLineEdit("10000")
+        self.ip_edit = QLineEdit(IP)
+        self.port_edit = QLineEdit(PORT)
         self.port_edit.setMaximumWidth(100)
 
         # --- UI Elements ---
@@ -37,7 +43,7 @@ class LaserControlWidget(QGroupBox):
         self.guide_btn.setEnabled(False)
 
         self.setpoint_spin = QDoubleSpinBox()
-        self.setpoint_spin.setSuffix(" A")
+        self.setpoint_spin.setSuffix(" %")
         self.setpoint_spin.setDecimals(2)
         self.setpoint_spin.setRange(0.0, 100.0)
         self.setpoint_spin.setSingleStep(0.1)
@@ -73,26 +79,26 @@ class LaserControlWidget(QGroupBox):
 
 
     def toggle_connection(self):
-        ip = self.ip_edit.text().strip()
+
         try:
+            ip = self.ip_edit.text().strip()
             port = int(self.port_edit.text().strip())
         except ValueError:
-            QMessageBox.warning(self, "Invalid Port", "Port must be an integer.")
+            QMessageBox.warning(self, "Invalid IP or Port", "check IP or Port")
             return
-
-        if self.controller is None:
+        if not self.controller.connected:
             # Attempt to connect
             try:
-                self.controller = IPGYLRLaserController(ip=ip, port=port)
-                self.controller.connect()
-                self.connect_btn.setText("Disconnect")
-                self.status_label.setText("Connected")
-                self.set_controls_enabled(True)
-                self.timer.start()
-                self.update_status()
+                self.controller.connect(ip=ip, port=port)
             except Exception as e:
-                QMessageBox.critical(self, "Connection Error", str(e))
-                self.controller = None
+                QMessageBox.critical(self, "Connection Error", e)
+            self.connect_btn.setText("Disconnect")
+            self.status_label.setText("Connected")
+            self.set_controls_enabled(True)
+            self.timer.start()
+            self.update_status()
+            self.ip_edit.setEnabled(False)
+            self.port_edit.setEnabled(False)
         else:
             # Disconnect
             self.timer.stop()
@@ -100,7 +106,8 @@ class LaserControlWidget(QGroupBox):
                 self.controller.disconnect()
             except Exception:
                 pass
-            self.controller = None
+            self.ip_edit.setEnabled(True)
+            self.port_edit.setEnabled(True)
             self.connect_btn.setText("Connect")
             self.status_label.setText("Disconnected")
             self.set_controls_enabled(False)
@@ -116,45 +123,41 @@ class LaserControlWidget(QGroupBox):
     def toggle_laser(self):
         if not self.controller:
             return
-        state = self.controller.is_laser_on()
-        if state:
+        if self.controller.status.emission_on:
             self.controller.laser_off()
         else:
             self.controller.laser_on()
-        self.update_status()
 
 
     def toggle_guide(self):
         if not self.controller:
             return
-        state = self.controller.is_guide_on()
-        if state:
+        if self.controller.status.guide_laser_on:
             self.controller.guide_off()
         else:
             self.controller.guide_on()
-        self.update_status()
 
 
     def update_setpoint(self, value):
         if self.controller:
-            self.controller.set_current_setpoint(value)
+            try:
+                self.controller.setpoint = float(value)
+            except (ValueError, TypeError) as e:
+                logging.error(f"Set point value is in wrong format: {e}")
 
 
     def update_status(self):
         if not self.controller:
             return
         try:
-            self.setpoint_spin.setValue(self.controller.get_current_setpoint())
-            self.temp_label.setText(f"Temp: {self.controller.get_temperature():.2f} °C")
+            self.setpoint_spin.setValue(self.controller.setpoint)
+            self.temp_label.setText(f"Temp: {self.controller.temperature:.1f} °C")
 
-            laser_on = self.controller.is_laser_on()
-            guide_on = self.controller.is_guide_on()
+            current_status = self.controller.status
 
-            self.laser_btn.setText("Turn Laser OFF" if laser_on else "Turn Laser ON")
-            self.guide_btn.setText("Turn Guide OFF" if guide_on else "Turn Guide ON")
-
-            status_bits = self.controller.get_laser_status()
-            self.laser_status_display.setText("Laser Status: " + self.interpret_status(status_bits))
+            self.laser_btn.setText("Turn Laser OFF" if current_status.emission_on else "Turn Laser ON")
+            self.guide_btn.setText("Turn Guide OFF" if current_status.guide_laser_on else "Turn Guide ON")
+            self.laser_status_display.setText("Laser Status:\n" + self.interpret_status(current_status))
         except Exception as e:
             self.status_label.setText(f"Error: {e}")
 
@@ -167,16 +170,18 @@ class LaserControlWidget(QGroupBox):
         self.guide_btn.setText("Turn Guide ON")
 
 
-    def interpret_status(self, status: int) -> str:
+    def interpret_status(self, status: LaserStatus) -> str:
         messages = []
-        if status & 0x01:
+        if status.emission_on:
             messages.append("Laser ON")
-        if status & 0x02:
+        if status.guide_laser_on:
             messages.append("Guide ON")
-        if status & 0x04:
-            messages.append("Over Temp")
-        if status & 0x08:
-            messages.append("Interlock Open")
-        if status & 0x10:
-            messages.append("Error")
-        return ", ".join(messages) if messages else "Idle"
+        if status.emission_startup:
+            messages.append("Laser Starting...")
+        if status.overheat:
+            messages.append("Over Temperature")
+        if status.low_temperature:
+            messages.append("Low Temperature")
+        if status.power_supply_off:
+            messages.append("Power Supply OFF")
+        return "\n".join(messages) if messages else "Idle"

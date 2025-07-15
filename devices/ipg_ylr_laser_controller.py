@@ -17,7 +17,7 @@ class LaserStatus:
     
     def update_status_bits(self, new_status_bits):
         self._bits = new_status_bits
-        logging.info(f"update status bits to {new_status_bits}")
+        # logging.info(f"update status bits to {new_status_bits}")
 
     
     @property
@@ -146,7 +146,7 @@ class IPGYLRLaserController:
         self._status = LaserStatus(0)
 
 
-    def connect(self, ip, port) -> bool:
+    def connect(self, ip, port):
         self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.s.settimeout(TIMEOUT)
         try:
@@ -159,13 +159,18 @@ class IPGYLRLaserController:
             logging.info(f"Connected to laser (serial number: {self._serial_number})")
         except (socket.timeout, socket.error) as e:
             logging.error(f"Connection failed: {e}")
+            self._is_connected = False
     
     
     def disconnect(self):
         if self._is_connected:
-            self.s.close()
-            self._is_connected = False
-            self._serial_number = ""
+            try:
+                self.s.close()
+                self._is_connected = False
+                logging.info(f"Disconnected from laser (serial number: {self._serial_number})")
+                self._serial_number = ""
+            except (socket.timeout, socket.error) as e:
+                return
 
     
     def __del__(self):
@@ -187,7 +192,7 @@ class IPGYLRLaserController:
 
     def _send_receive(self, command: str) -> Optional[str]:
         if not self._is_connected:
-            logging.error("Attempted to send command while not connected.")
+            logging.error(f"Attempted to send command {command} while not connected.")
             return None
         c = command + "\r"
         try:
@@ -204,20 +209,19 @@ class IPGYLRLaserController:
 
     def _send_check(self, command: str) -> bool:
         if not self._is_connected:
-            logging.error("Attempted to send command while not connected.")
+            logging.error(f"Attempted to send command {command} while not connected.")
             return False
         c = command + "\r"
         try:
             self.s.send(c.encode())
-            res = self.s.recv(BUFFER_SIZE).decode().strip()
-            print(f"{command} -> {res}")
+            res = self.s.recv(BUFFER_SIZE).decode().strip().replace(":", "")
         except (socket.timeout, socket.error) as e:
             logging.error(f"Socket error while waiting for response: {e}")
             return False
         if res == command.strip():
             return True
         else:
-            logging.warning(f"Response: {res}")
+            logging.warning(f"Command: {command.strip()} -> Response: {res}")
             return False
     
 
@@ -237,28 +241,36 @@ class IPGYLRLaserController:
     def guide_on(self):
         command = "ABN"
         ack = self._send_check(command)
-        if not ack:
+        if ack:
+            logging.info("Guide laser on")
+        else:
             logging.error("Failed to turn guide laser on.")
 
 
     def guide_off(self):
         command = "ABF"
         ack = self._send_check(command)
-        if not ack:
+        if ack:
+            logging.info("Guide laser off")
+        else:
             logging.error("Failed to turn guide laser off.")
 
 
     def laser_on(self):
         command = "EMON"
         ack = self._send_check(command)
-        if not ack:
+        if ack:
+            logging.info("Laser on")
+        else:
             logging.error("Failed to turn laser on.")
 
 
     def laser_off(self):
         command = "EMOFF"
         ack = self._send_check(command)
-        if not ack:
+        if ack:
+            logging.info("Laser off")
+        else:
             logging.error("Failed to turn laser off.")
 
 
@@ -281,6 +293,7 @@ class IPGYLRLaserController:
         command = "RCS"
         res = self._send_receive(command)
         if res is None:
+            logging.warning(f"No response while reading setpoint")
             return None
         try:
             return float(res.split(": ")[1])
