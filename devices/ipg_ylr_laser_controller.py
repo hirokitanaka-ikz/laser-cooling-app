@@ -7,171 +7,135 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 BUFFER_SIZE = 1024
 TIMEOUT = 0.5
 
-# class LaserStatus:
-#     '''
-#     Bit 6, 7, 13, 14, 26, 28 are reserved and not used. 
-#     '''
-#     def __init__(self, status_bits: int):
-#         self._bits = status_bits
+class LaserStatus:
+    '''
+    Bit 6, 7, 13, 14, 26, 28 are reserved and not used. 
+    '''
+    def __init__(self, status_bits: int):
+        self._bits = status_bits
 
     
-#     def update_status_bits(self, new_status_bits):
-#         self._bits = new_status_bits
-#         # logging.info(f"update status bits to {new_status_bits}")
+    def update_status_bits(self, new_status_bits):
+        self._bits = new_status_bits
+        # logging.info(f"update status bits to {new_status_bits}")
 
     
-#     @property
-#     def command_buffer_overload(self) -> bool:
-#         return bool(self._bits & (1 << 0)) # Bit 0
+    @property
+    def command_buffer_overload(self) -> bool:
+        return bool(self._bits & (1 << 0)) # Bit 0
     
-#     @property
-#     def overheat(self) -> bool:
-#         return bool(self._bits & (1 << 1)) # Bit 1
+    @property
+    def overheat(self) -> bool:
+        return bool(self._bits & (1 << 1)) # Bit 1
     
-#     @property
-#     def emission_on(self) -> bool:
-#         return bool(self._bits & (1 << 2)) # Bit 2
+    @property
+    def emission_on(self) -> bool:
+        return bool(self._bits & (1 << 2)) # Bit 2
     
-#     @property
-#     def high_back_reflection(self) -> bool:
-#         return bool(self._bits & (1 << 3)) # Bit 3
+    @property
+    def high_back_reflection(self) -> bool:
+        return bool(self._bits & (1 << 3)) # Bit 3
     
-#     @property
-#     def analog_power_control_enabled(self) -> bool:
-#         return bool(self._bits & (1 << 4)) # Bit 4
+    @property
+    def analog_power_control_enabled(self) -> bool:
+        return bool(self._bits & (1 << 4)) # Bit 4
     
-#     @property
-#     def pulse_too_long(self) -> bool:
-#         # QCW Models only
-#         return bool(self._bits & (1 << 5)) # Bit 5
+    @property
+    def pulse_too_long(self) -> bool:
+        # QCW Models only
+        return bool(self._bits & (1 << 5)) # Bit 5
     
-#     @property
-#     def guide_laser_on(self) -> bool:
-#         return bool(self._bits & (1 << 8)) # Bit 8
+    @property
+    def guide_laser_on(self) -> bool:
+        return bool(self._bits & (1 << 8)) # Bit 8
     
-#     @property
-#     def pulse_too_short(self) -> bool:
-#         return bool(self._bits & (1 << 9)) # Bit 9
+    @property
+    def pulse_too_short(self) -> bool:
+        return bool(self._bits & (1 << 9)) # Bit 9
     
-#     @property
-#     def pulsed_mode(self) -> bool:
-#         # QCW Models only
-#         return bool(self._bits & (1 << 10)) # Bit 10
+    @property
+    def pulsed_mode(self) -> bool:
+        # QCW Models only
+        return bool(self._bits & (1 << 10)) # Bit 10
     
-#     @property
-#     def power_supply_off(self) -> bool:
-#         return bool(self._bits & (1 << 11)) # Bit 11
+    @property
+    def power_supply_off(self) -> bool:
+        return bool(self._bits & (1 << 11)) # Bit 11
     
-#     @property
-#     def modulation_enabled(self) -> bool:
-#         return bool(self._bits & (1 << 12)) # Bit 12
+    @property
+    def modulation_enabled(self) -> bool:
+        return bool(self._bits & (1 << 12)) # Bit 12
     
-#     @property
-#     def emission_startup(self) -> bool:
-#         return bool(self._bits & (1 << 15)) # Bit 15
+    @property
+    def emission_startup(self) -> bool:
+        return bool(self._bits & (1 << 15)) # Bit 15
     
-#     @property
-#     def gate_mode_enabled(self) -> bool:
-#         # Lasers with touchscreen only
-#         return bool(self._bits & (1 << 16)) # Bit 16
+    @property
+    def gate_mode_enabled(self) -> bool:
+        # Lasers with touchscreen only
+        return bool(self._bits & (1 << 16)) # Bit 16
     
-#     @property
-#     def high_pulse_energy(self) -> bool:
-#         # QCW Models only
-#         return bool(self._bits & (1 << 17)) # Bit 17
+    @property
+    def high_pulse_energy(self) -> bool:
+        # QCW Models only
+        return bool(self._bits & (1 << 17)) # Bit 17
     
-#     @property
-#     def hardware_emission_control_enabled(self) -> bool:
-#         return bool(self._bits & (1 << 18)) # Bit 18
+    @property
+    def hardware_emission_control_enabled(self) -> bool:
+        return bool(self._bits & (1 << 18)) # Bit 18
     
-#     @property
-#     def power_supply_failure(self) -> bool:
-#         return bool(self._bits & (1 << 19)) # Bit 19
+    @property
+    def power_supply_failure(self) -> bool:
+        return bool(self._bits & (1 << 19)) # Bit 19
     
-#     @property
-#     def front_panel_locked(self) -> bool:
-#         # Lasers with touchscreen only
-#         return bool(self._bits & (1 << 20)) # Bit 20
+    @property
+    def front_panel_locked(self) -> bool:
+        # Lasers with touchscreen only
+        return bool(self._bits & (1 << 20)) # Bit 20
     
-#     @property
-#     def keyswitch_in_REM(self) -> bool:
-#         # Lasers with touchscreen only
-#         return bool(self._bits & (1 << 21)) # Bit 21
+    @property
+    def keyswitch_in_REM(self) -> bool:
+        # Lasers with touchscreen only
+        return bool(self._bits & (1 << 21)) # Bit 21
     
-#     @property
-#     def waveform_pulse_mode(self) -> bool:
-#         # Lasers with pulse shaping option only
-#         return bool(self._bits & (1 << 22)) # Bit 22
+    @property
+    def waveform_pulse_mode(self) -> bool:
+        # Lasers with pulse shaping option only
+        return bool(self._bits & (1 << 22)) # Bit 22
     
-#     @property
-#     def duty_cycle_too_high(self) -> bool:
-#         # QCW Models only
-#         return bool(self._bits & (1 << 23)) # Bit 23
+    @property
+    def duty_cycle_too_high(self) -> bool:
+        # QCW Models only
+        return bool(self._bits & (1 << 23)) # Bit 23
     
-#     @property
-#     def low_temperature(self) -> bool:
-#         return bool(self._bits & (1 << 24)) # Bit 24
+    @property
+    def low_temperature(self) -> bool:
+        return bool(self._bits & (1 << 24)) # Bit 24
     
-#     @property
-#     def power_supply_alarm(self) -> bool:
-#         return bool(self._bits & (1 << 25)) # Bit 25
+    @property
+    def power_supply_alarm(self) -> bool:
+        return bool(self._bits & (1 << 25)) # Bit 25
     
-#     @property
-#     def hardware_guide_laser_control_enabled(self) -> bool:
-#         return bool(self._bits & (1 << 27)) # Bit 27
+    @property
+    def hardware_guide_laser_control_enabled(self) -> bool:
+        return bool(self._bits & (1 << 27)) # Bit 27
     
-#     @property
-#     def critical_error(self) -> bool:
-#         return bool(self._bits & (1 << 29)) # Bit 29
+    @property
+    def critical_error(self) -> bool:
+        return bool(self._bits & (1 << 29)) # Bit 29
     
-#     @property
-#     def fiber_interlock_active(self) -> bool:
-#         return bool(self._bits & (1 << 30)) # Bit 30
+    @property
+    def fiber_interlock_active(self) -> bool:
+        return bool(self._bits & (1 << 30)) # Bit 30
     
-#     @property
-#     def high_average_power(self) -> bool:
-#         # QCW Models only
-#         return bool(self._bits & (1 << 31)) # Bit 31
+    @property
+    def high_average_power(self) -> bool:
+        # QCW Models only
+        return bool(self._bits & (1 << 31)) # Bit 31
     
 
-#     def __repr__(self):
-#         return f"<LaserStatusBits bits={self._bits:032b}>"
-
-BIT_MESSAGES = [
-    "Command Buffer Overload",
-    "Overheat",
-    "Emission On",
-    "High Back Reflection Level",
-    "Analog Power Control Enabled",
-    "Pulse Too Long",
-    "Reserved",
-    "Reserved",
-    "Aiming Beam On",
-    "Pulse Too Short",
-    "Pulsed Mode",
-    "Power Supply Off",
-    "Modulation Enabled",
-    "Reserved",
-    "Reserved",
-    "Emission is in the 3 second start-up state",
-    "Gate Mode Enabled",
-    "High Pulse Energy",
-    "Hardware Emission Control Enabled",
-    "Power Supply Failure",
-    "Front Panel Display is Locked",
-    "Keyswitch is in REM position",
-    "Waveform Pulse Mode On",
-    "Duty Cycle Too High",
-    "Low Temperature",
-    "Power Supply Alarm",
-    "Reserved",
-    "Hardware Aiming Beam Control Enabled",
-    "Reserved",
-    "Critical Error",
-    "Fiber Interlock Active",
-    "High Average Power"
-]
-assert len(BIT_MESSAGES) == 32
+    def __repr__(self):
+        return f"<LaserStatusBits bits={self._bits:032b}>"
 
 
 class IPGYLRLaserController:

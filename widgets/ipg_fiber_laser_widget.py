@@ -172,17 +172,35 @@ class LaserControlWidget(QGroupBox):
 
 
     def interpret_status(self, status: LaserStatus) -> str:
-        messages = []
-        if status.emission_on:
-            messages.append("Laser ON")
-        if status.guide_laser_on:
-            messages.append("Guide ON")
-        if status.emission_startup:
-            messages.append("Laser Starting...")
+        message_list = []
+        if status.command_buffer_overload:
+            message_list.append("Command Buffer Overload")
         if status.overheat:
-            messages.append("Over Temperature")
-        if status.low_temperature:
-            messages.append("Low Temperature")
+            message_list.append("Overheat")
+        if status.emission_on:
+            message_list.append("Laser ON")
+        if status.high_back_reflection:
+            message_list.append("High Back Reflection Level")
+        if status.guide_laser_on:
+            message_list.append("Guide ON")
         if status.power_supply_off:
-            messages.append("Power Supply OFF")
-        return "\n".join(messages) if messages else "Idle"
+            message_list.append("Power Supply Off")
+        if status.emission_startup:
+            message_list.append("Emission in 3 sec Start-up State")
+        if status.power_supply_failure:
+            message_list.append("Power Supply Failure")
+        if status.front_panel_locked:
+            message_list.append("Front Panel Display Locked")
+        if status.keyswitch_in_REM:
+            message_list.append("Keyswitch in REM Position")
+        if status.low_temperature:
+            message_list.append("Low Temperature")
+        if status.power_supply_alarm:
+            message_list.append("Power Supply Alarm")
+        if status.critical_error:
+            message_list.append("Critial Error")
+        if status.fiber_interlock_active:
+            message_list.append("Fiber Interlock Active")
+        if status.high_average_power:
+            message_list.append("High Average Power")
+        return "\n\t".join(message_list) if message_list else "Idle"
