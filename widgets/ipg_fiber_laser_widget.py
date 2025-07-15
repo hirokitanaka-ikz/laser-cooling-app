@@ -2,7 +2,7 @@ from PyQt6.QtWidgets import (
     QGroupBox, QPushButton, QLabel, QVBoxLayout, QHBoxLayout,
     QDoubleSpinBox, QMessageBox, QLineEdit, QFormLayout
 )
-from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtCore import QTimer
 from devices.ipg_ylr_laser_controller import IPGYLRLaserController, LaserStatus
 import logging
 
@@ -20,7 +20,7 @@ class LaserControlWidget(QGroupBox):
 
         self.controller = IPGYLRLaserController()
         self.timer = QTimer(self)
-        self.timer.setInterval(1000)
+        self.timer.setInterval(250) # ms
         self.timer.timeout.connect(self.update_status)
 
         # Connection input fields
