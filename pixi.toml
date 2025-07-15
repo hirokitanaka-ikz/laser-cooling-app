@@ -1,0 +1,11 @@
+[workspace]
+authors = ["Hiroki Tanaka <hiroki.tanaka@ikz-berlin.de>"]
+channels = ["conda-forge"]
+name = "laser-cooling-app"
+platforms = ["win-64"]
+version = "0.1.0"
+
+[tasks]
+
+[dependencies]
+python = "3.10.*"

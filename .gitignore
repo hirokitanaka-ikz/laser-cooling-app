@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+
+# IDE/editor
+.vscode/
+.idea/
+
+# Environment
+.pixi/
+.env
+.env.*
+*.log
+
+# OS-specific
+.DS_Store
+Thumbs.db# pixi environments
+.pixi
