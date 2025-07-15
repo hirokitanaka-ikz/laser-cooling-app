@@ -151,7 +151,9 @@ class LaserControlWidget(QGroupBox):
         if not self.controller:
             return
         try:
+            self.setpoint_spin.blockSignals(True)
             self.setpoint_spin.setValue(self.controller.setpoint)
+            self.setpoint_spin.blockSignals(False) # avoid triggering valueChanged signal
             self.temp_label.setText(f"Temp: {self.controller.temperature:.1f} °C")
 
             current_status = self.controller.status
