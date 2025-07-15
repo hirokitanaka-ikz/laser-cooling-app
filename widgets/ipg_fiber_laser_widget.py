@@ -92,13 +92,14 @@ class LaserControlWidget(QGroupBox):
                 self.controller.connect(ip=ip, port=port)
             except Exception as e:
                 QMessageBox.critical(self, "Connection Error", e)
-            self.connect_btn.setText("Disconnect")
-            self.status_label.setText("Connected")
-            self.set_controls_enabled(True)
-            self.timer.start()
-            self.update_status()
-            self.ip_edit.setEnabled(False)
-            self.port_edit.setEnabled(False)
+            if self.controller.connected:
+                self.connect_btn.setText("Disconnect")
+                self.status_label.setText("Connected")
+                self.set_controls_enabled(True)
+                self.timer.start()
+                self.update_status()
+                self.ip_edit.setEnabled(False)
+                self.port_edit.setEnabled(False)
         else:
             # Disconnect
             self.timer.stop()
