@@ -143,7 +143,7 @@ class IPGYLRLaserController:
     def __init__(self) -> None:
         self._is_connected = False
         self._serial_number = ""
-        self._status_bits = 0
+        self._status = LaserStatus(0)
 
 
     def connect(self, ip, port):
@@ -153,9 +153,7 @@ class IPGYLRLaserController:
             self.s.connect((ip, port))
             self._is_connected = True
             self._get_serial_number()
-            bits = self._get_status_bits()
-            if bits is None:
-                self._status.update_status_bits(bits)
+            self._update_status()
             logging.info(f"Connected to laser (serial number: {self._serial_number})")
         except (socket.timeout, socket.error) as e:
             logging.error(f"Connection failed: {e}")
@@ -176,15 +174,20 @@ class IPGYLRLaserController:
     def __del__(self):
         self.disconnect()
 
-    
-    @property
-    def status_bits(self) -> Optional[int]:
+
+    def _update_status(self):
         command = "STA"
         res = self._send_receive(command)
         if res is None:
             return None
         status_decimal = int(res.split(": ")[1])
-        return status_decimal
+        self._status.update_status_bits(status_decimal)
+    
+
+    @property
+    def status(self) -> Optional[LaserStatus]:
+        self._update_status()
+        return self._status
     
 
     @property

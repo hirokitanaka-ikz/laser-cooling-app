@@ -20,7 +20,7 @@ class LaserControlWidget(QGroupBox):
 
         self.controller = IPGYLRLaserController()
         self.timer = QTimer(self)
-        self.timer.setInterval(250) # ms
+        self.timer.setInterval(500) # ms
         self.timer.timeout.connect(self.update_status)
 
         # Connection input fields
@@ -91,7 +91,7 @@ class LaserControlWidget(QGroupBox):
             try:
                 self.controller.connect(ip=ip, port=port)
             except Exception as e:
-                QMessageBox.critical(self, "Connection Error", e)
+                QMessageBox.critical(self, "Connection Error", f"{e}")
             if self.controller.connected:
                 self.connect_btn.setText("Disconnect")
                 self.status_label.setText("Connected")
@@ -158,7 +158,7 @@ class LaserControlWidget(QGroupBox):
 
             self.laser_btn.setText("Turn Laser OFF" if current_status.emission_on else "Turn Laser ON")
             self.guide_btn.setText("Turn Guide OFF" if current_status.guide_laser_on else "Turn Guide ON")
-            self.laser_status_display.setText("Laser Status:\n" + self.interpret_status(current_status))
+            self.laser_status_display.setText("Status:\n\t" + self.get_status_message(current_status))
         except Exception as e:
             self.status_label.setText(f"Error: {e}")
 
@@ -171,7 +171,7 @@ class LaserControlWidget(QGroupBox):
         self.guide_btn.setText("Turn Guide ON")
 
 
-    def interpret_status(self, status: LaserStatus) -> str:
+    def get_status_message(self, status: LaserStatus) -> str:
         message_list = []
         if status.command_buffer_overload:
             message_list.append("Command Buffer Overload")
