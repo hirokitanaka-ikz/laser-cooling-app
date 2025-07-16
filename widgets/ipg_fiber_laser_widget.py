@@ -82,7 +82,6 @@ class LaserControlWidget(QGroupBox):
 
 
     def toggle_connection(self):
-
         try:
             ip = self.ip_edit.text().strip()
             port = int(self.port_edit.text().strip())

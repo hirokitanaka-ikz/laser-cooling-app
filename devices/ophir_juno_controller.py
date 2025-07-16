@@ -14,9 +14,15 @@ class OphirJunoController:
         self._ophir_com = win32com.client.Dispatch("OphirLMMeasurement.CoLMMeasurement")
         self._ophir_com.StopAllStreams()
         self._ophir_com.CloseAll()
+        self._connected = False
         self._serial_number = None
         self._device_handler = None
         self._last_power = 0.0
+    
+
+    @property
+    def connected(self) -> bool:
+        return self._connected
     
 
     @property
@@ -42,6 +48,7 @@ class OphirJunoController:
         try:
             self._device_handler = self._ophir_com.OpenUSBDevice(serial_number)
             self._ophir_com.StartStream(self._device_handler, CHANNEL)
+            self._connected = True
             logging.info("Juno connected and started streaming")
         except (IndexError, com_error) as e:
             logging.error(f"Failed to connect to Juno: {e}")
@@ -51,10 +58,15 @@ class OphirJunoController:
         try:
             self._ophir_com.StopAllStreams()
             self._ophir_com.CloseAll()
+            self._connected = False
             logging.info(f"Juno disconnected")
         except com_error as e:
             logging.error(f"Failed to disconnect Juno")
-        # no log if already disconnected
+            # no log if already disconnected
+
+
+    def __del__(self):
+        self.disconnect()
     
 
     def start_stream(self):
