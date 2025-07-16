@@ -17,7 +17,7 @@ class OphirPowerMeterWidget(QGroupBox):
         super().__init__("Ophir Power Meter Control", parent)
 
         self.controller = OphirJunoController()
-        self.last_power = None
+        self.last_power = None  # keep latest value here to communicate with data class for saving
 
         # UI Elements
         self.scan_usb_btn = QPushButton("Scan USB")
@@ -86,6 +86,12 @@ class OphirPowerMeterWidget(QGroupBox):
     def clear_info(self):
         self.device_info_label.setText("---")
         self.sensor_info_label.setText("---")
+        self.range_select_combo.blockSignals(True)
+        self.range_select_combo.clear()
+        self.range_select_combo.blockSignals(False)
+        self.wavelength_select_combo.blockSignals(True)
+        self.wavelength_select_combo.clear()
+        self.wavelength_select_combo.blockSignals(True)
 
 
     def toggle_connection(self):
@@ -96,9 +102,14 @@ class OphirPowerMeterWidget(QGroupBox):
                 return
             self.controller.connect(selected_device_serial) # also start stream
             if self.controller.connected:
-                self.device_info_label.setText(" - ").join(self.controller.device_info)
+                self.device_info_label.setText(" - ".join(self.controller.device_info))
                 if self.controller.is_sensor_exist:
-                    self.sensor_info_label.setText(" - ").join(self.controller.sensor_info)
+                    self.sensor_info_label.setText(" - ".join(self.controller.sensor_info))
+                    self.range_select_combo.addItems(self.controller.available_ranges)
+                    self.wavelength_select_combo.addItems(self.controller.available_wavelengths)
+                    self.range_select_combo.setCurrentIndex(0)
+                    self.wavelength_select_combo.setCurrentIndex(0)
+
                 self.connect_btn.setText("Disconnect")
                 self.polling_thread = PowerMeterPollingThread(self.controller, interval=0.5)
                 self.polling_thread.updated.connect(self.update_value_display)
@@ -120,16 +131,18 @@ class OphirPowerMeterWidget(QGroupBox):
 
 
     def change_range(self):
-        pass
+        new_index = self.range_select_combo.currentIndex()
+        self.controller.range = new_index
 
 
     def change_wavelength(self):
-        pass
+        new_index = self.wavelength_select_combo.currentIndex()
+        self.controller.wavelength = new_index
 
 
 class PowerMeterPollingThread(QThread):
 
-    updated = pyqtSignal(dict)
+    updated = pyqtSignal(float)
 
     def __init__(self, controller, interval=0.5, parent=None):
         super().__init__(parent)
@@ -143,13 +156,16 @@ class PowerMeterPollingThread(QThread):
             try:
                 if self.controller.connected:
                     data = self.controller.get_data() # return list
+                    """
+                    data looks like
+                    [{'value': 0.0, 'timestamp': 520181089.0, 'status': 0}, {'value': 0.0, 'timestamp': 520181156.0, 'status': 0}, ...]
+                    """
                     if data: # if list is not empty
-                        value_array = data[0]
-                        print(value_array) # printing for testing
-                        self.updated.emit(value_array[0])
+                        newest_power = data[-1]["value"]
+                        self.updated.emit(newest_power)
             except Exception as e:
                 logging.error(f"Polling power meter data failed: {e}")
-        time.sleep(self.interval)
+            time.sleep(self.interval)
 
 
     def stop(self):

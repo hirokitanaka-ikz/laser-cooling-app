@@ -133,7 +133,7 @@ class OphirJunoController:
 
     
     @property
-    def wavelength(self) -> str:
+    def wavelength(self) -> int:
         """
         GetWavelengths returns a tuple like ((1, ('10.6', '.8-6', '<.8u')))
         The first element (int) is selected index, and the second element (tuple) are currently available wavelengths
@@ -142,13 +142,14 @@ class OphirJunoController:
             output = self._ophir_com.GetWavelengths(self._device_handler, CHANNEL)
         except com_error as e:
             logging.error(f"Failed get selected wavelength: {e}")
-            return ""
+            return -1
         try:
             index = output[0]
-            return f"[{index}]: {output[2][index]}"
+            logging.info(f"Selected Wavelength: [{index}] {output[2][index]}")
+            return index
         except (IndexError, TypeError) as e:
             logging.error(f"Failed to get selected wavelength: {e}")
-            return ""
+            return -1
     
     
     def modify_wavelength(self, index:int, wavelength:int):
@@ -172,68 +173,76 @@ class OphirJunoController:
 
 
     @property
-    def available_wavelengths(self) -> str:
+    def available_wavelengths(self) -> list:
         try:
             output = self._ophir_com.GetWavelengths(self._device_handler, CHANNEL)
         except com_error as e:
             logging.error(f"Failed to get wavelengths: {e}")
-            return ""
+            return list
         try:
             wavelengths_list = output[1]
         except (IndexError, TypeError) as e:
             logging.error(f"Failed to parse wavelengths: {e}")
-            return ""
-        return ", ".join([f"[{i}]: {wl}" for i, wl in enumerate(wavelengths_list)])
+            return list
+        return wavelengths_list
         
 
     @wavelength.setter
     def wavelength(self, new_index:int):
         try:
+            self.stop_stream()
             self._ophir_com.SetWavelength(self._device_handler, CHANNEL, new_index)
+            self.start_stream()
+            logging.info(f"Wavelength set to Index [{new_index}]")
         except com_error as e:
             logging.error(f"Failed to set wavelength: {e}")
             return
     
 
     @property
-    def available_ranges(self) -> str:
+    def available_ranges(self) -> list:
         try:
             output = self._ophir_com.GetRanges(self._device_handler, CHANNEL)
         except com_error as e:
             logging.error(f"Failed to get ranges: {e}")
-            return ""
+            return []
         try:
             ranges_list = output[1]
         except (IndexError, TypeError) as e:
             logging.error(f"Failed to parse ranges: {e}")
-            return ""
-        return ", ".join([f"[{i}]: {wl}" for i, wl in enumerate(ranges_list)])
+            return []
+        return ranges_list
 
 
     @property
-    def range(self) -> str:
+    def range(self) -> int:
         """
         GetRanges return a tuple like (0, ('AUTO', '150W', '30.0W')).
         The first element is currently selected index and the second element (tuple) shows available ranges.
         """
         try:
             output = self._ophir_com.GetRanges(self._device_handler, CHANNEL)
+            print(f"output: {output}")
         except com_error as e:
             logging.error(f"Failed to get selected ranges: {e}")
-            return ""
+            return -1
         try:
             index = output[0]
-            return f"[{index}]: {output[2][index]}"
+            logging.info(f"Selected range: [{index}] {output[2][index]}")
+            return index
         except (IndexError, TypeError) as e:
             logging.error(f"Failed to get selected ranges: {e}")
-            return ""
+            return -1
 
 
     @range.setter
-    def range(self, new_range_index):
+    def range(self, new_range_index: int):
         try:
+            self.stop_stream()
             self._ophir_com.SetRange(self._device_handler, CHANNEL, new_range_index)
-        except com_error as e:
+            self.start_stream()
+            logging.info(f"Range set to Index [{new_range_index}]")
+        except (com_error, TypeError) as e:
             logging.error(f"Failed to set range: {e}")
     
 
