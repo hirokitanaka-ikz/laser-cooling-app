@@ -174,7 +174,9 @@ class LaserControlWidget(QGroupBox):
 
 
     def clear_status_display(self):
+        self.setpoint_spin.blockSignals(True) 
         self.setpoint_spin.setValue(0)
+        self.setpoint_spin.blockSignals(False) 
         self.power_label.setText("Output Power: --- W")
         self.temp_label.setText("Temp: --- °C")
         self.laser_status_display.setText("Laser Status: ---")
