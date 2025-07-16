@@ -3,6 +3,10 @@ from scipy.signal import find_peaks
 import seabreeze
 seabreeze.use('cseabreeze')
 from seabreeze.spectrometers import Spectrometer
+import logging
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
 
 WAVELENGTH_MIN = 900
 WAVELENGTH_MAX = 1100
@@ -11,28 +15,37 @@ WAVELENGTH_MAX = 1100
 class OceanSpectrometerController():
 
     def __init__(self) -> None:
-        self._wavelengths = []
-        self._intensity = []
-        self._background = []
-        self._is_connected = False
-        self._exposure_time = 100 # ms
-        self._wavelength_min = WAVELENGTH_MIN
-        self._wavelength_max = WAVELENGTH_MAX
-        # self.isRecording = False
-    
+        self._connected = False
+        self._serial_number = ""
+        self._model_type = ""
+
 
     def connect(self):
         try:
             self.spectrometer = Spectrometer.from_first_available()
-        except AttributeError:
-            return False
-        except seabreeze.cseabreeze._wrapper.SeaBreezeError:
-            return False
-        self.spectrometer.integration_time_micros(self.exposure_time)
-        self.background = self.spectrometer.intensities()
-        self.isConnected = True
-        print('Ocean Optics spectrometer connected')
-        return True
+            logging.info("Spectrometer connected")
+            self._connected = True
+        except (AttributeError, seabreeze.cseabreeze._wrapper.SeaBreezeError, Exception) as e:
+            logging.error(f"Failed to connect to spectrometer: {e}")
+            return
+
+        
+    def disconnect(self):
+        if self._connected:
+            self.spectrometer = None
+
+
+
+    @property
+    def serial_number(self) -> str:
+        return self.
+
+
+    @property
+    def integration_time(self):
+        pass
+
+
     
 
     def get_serial_number(self):

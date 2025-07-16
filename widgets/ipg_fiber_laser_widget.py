@@ -20,9 +20,6 @@ class LaserControlWidget(QGroupBox):
         super().__init__("IPG Fiber Laser Control", parent)
 
         self.controller = IPGYLRLaserController()
-        # self.timer = QTimer(self)
-        # self.timer.setInterval(500) # ms
-        # self.timer.timeout.connect(self.update_status)
         self.polling_thread = None
         
         # Connection input fields
