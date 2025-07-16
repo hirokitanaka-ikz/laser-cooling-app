@@ -5,6 +5,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import QTimer, QThread, pyqtSignal
 from devices.ipg_ylr_laser_controller import IPGYLRLaserController, LaserStatus
 import logging
+import time
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -51,6 +52,7 @@ class LaserControlWidget(QGroupBox):
         self.setpoint_spin.valueChanged.connect(self.update_setpoint)
         self.setpoint_spin.setEnabled(False)
 
+        self.power_label = QLabel("Output Power: --- W")
         self.temp_label = QLabel("Temp: --- °C")
         self.laser_status_display = QLabel("Laser Status: ---")
 
@@ -72,7 +74,7 @@ class LaserControlWidget(QGroupBox):
         hlayout.addWidget(QLabel("Setpoint:"))
         hlayout.addWidget(self.setpoint_spin)
         layout.addLayout(hlayout)
-
+        layout.addWidget(self.power_label)
         layout.addWidget(self.temp_label)
         layout.addWidget(self.laser_status_display)
 
@@ -159,14 +161,11 @@ class LaserControlWidget(QGroupBox):
         Instead, this receives status dictionary (new_status) from polling thread and update UIs. 
         """
         try:
-            setpoint = new_status["setpoint"]
-            temperature = new_status["temperature"]
-            laser_on = new_status["laser_on"]
-
             self.setpoint_spin.blockSignals(True)   # avoid triggering valueChanged signal
             self.setpoint_spin.setValue(new_status["setpoint"])
             self.setpoint_spin.blockSignals(False)
-            self.temp_label.setText(f"Temp: {temperature:.1f} °C")
+            self.power_label.setText(f"Output Power: {new_status['output_power']:.1f} W")
+            self.temp_label.setText(f"Temp: {new_status['temperature']:.1f} °C")
             self.laser_btn.setText("Turn Laser OFF" if new_status["laser_on"] else "Turn Laser ON")
             self.guide_btn.setText("Turn Guide OFF" if new_status["guide_on"] else "Turn Guide ON")
             self.laser_status_display.setText("Status:\n\t" + new_status["messages"])
@@ -176,6 +175,7 @@ class LaserControlWidget(QGroupBox):
 
     def clear_status_display(self):
         self.setpoint_spin.setValue(0)
+        self.power_label.setText("Output Power: --- W")
         self.temp_label.setText("Temp: --- °C")
         self.laser_status_display.setText("Laser Status: ---")
         self.laser_btn.setText("Turn Laser ON")
@@ -195,25 +195,26 @@ class LaserPollingThread(QThread):
 
     def run(self):
         while self._running:
-            if not self.controller:
-                try:
-                    setpoint = self.controller.setpoint # Optional[float]
-                    temperature = self.controller.temperature   # Optional[float]
-                    status = self.controller.status #LaserStatus
-                    laser_on = status.emission_on # bool
-                    guide_on = status.guide_laser_on # bool
-                    messages = self.format_status_message(status) # str
-                    new_status = {
-                        "setpoint": setpoint,
-                        "temperature": temperature,
-                        "laser_on": laser_on,
-                        "guide_on": guide_on,
-                        "messages": messages
-                    }
-                    self.status_updated.emit(new_status)
-                except Exception as e:
-                    logging.error(f"Polling laser status failed: {e}")
-
+            try:
+                setpoint = self.controller.setpoint # Optional[float]
+                output_power = self.controller.output_power # Optional[float]
+                temperature = self.controller.temperature   # Optional[float]
+                status = self.controller.status #LaserStatus
+                laser_on = status.emission_on # bool
+                guide_on = status.guide_laser_on # bool
+                messages = self.format_status_message(status) # str
+                new_status = {
+                    "setpoint": setpoint,
+                    'output_power': output_power,
+                    "temperature": temperature,
+                    "laser_on": laser_on,
+                    "guide_on": guide_on,
+                    "messages": messages
+                }
+                self.status_updated.emit(new_status)
+            except Exception as e:
+                logging.error(f"Polling laser status failed: {e}")
+            time.sleep(self.interval)
     
     def stop(self):
         self._running = False
