@@ -2,7 +2,7 @@ from PyQt6.QtWidgets import (
     QGroupBox, QPushButton, QLabel, QVBoxLayout, QHBoxLayout,
     QDoubleSpinBox, QMessageBox, QLineEdit, QFormLayout
 )
-from PyQt6.QtCore import QTimer
+from PyQt6.QtCore import QTimer, QThread, pyqtSignal
 from devices.ipg_ylr_laser_controller import IPGYLRLaserController, LaserStatus
 import logging
 
@@ -206,3 +206,24 @@ class LaserControlWidget(QGroupBox):
         if status.high_average_power:
             message_list.append("High Average Power")
         return "\n\t".join(message_list) if message_list else "Idle"
+
+
+class LaserPollingThread(QThread):
+    
+    status_updated = pyqtSignal(dict) # dict type data is given to LaserControlWidget
+
+    def __init__(self, controller, interval=0.5, parent=None):
+        super().__init__(parent)
+        self.controller = controller
+        self.interval = interval
+        self._running = True
+    
+
+    def run(self):
+        while self._running:
+            pass
+
+    
+    def stop(self):
+        self._running = False
+        self.wait()
