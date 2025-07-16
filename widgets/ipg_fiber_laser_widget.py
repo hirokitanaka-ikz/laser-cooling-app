@@ -19,10 +19,11 @@ class LaserControlWidget(QGroupBox):
         super().__init__("IPG Fiber Laser Control", parent)
 
         self.controller = IPGYLRLaserController()
-        self.timer = QTimer(self)
-        self.timer.setInterval(500) # ms
-        self.timer.timeout.connect(self.update_status)
-
+        # self.timer = QTimer(self)
+        # self.timer.setInterval(500) # ms
+        # self.timer.timeout.connect(self.update_status)
+        self.polling_thread = None
+        
         # Connection input fields
         self.ip_edit = QLineEdit(IP)
         self.port_edit = QLineEdit(PORT)
@@ -96,13 +97,18 @@ class LaserControlWidget(QGroupBox):
                 self.connect_btn.setText("Disconnect")
                 self.status_label.setText("Connected")
                 self.set_controls_enabled(True)
-                self.timer.start()
-                self.update_status()
+                # self.timer.start()
+                # self.update_status()
+                self.polling_thread = LaserPollingThread(self.controller, interval=0.5)
+                self.polling_thread.status_updated.connect(self.update_status_display) # emit polling_thread.status_updated -> execute self.update_status_display
+                self.polling_thread.start()
                 self.ip_edit.setEnabled(False)
                 self.port_edit.setEnabled(False)
         else:
             # Disconnect
-            self.timer.stop()
+            # self.timer.stop()
+            self.polling_thread.stop()
+            self.polling_thread = None
             try:
                 self.controller.disconnect()
             except Exception:
@@ -145,22 +151,24 @@ class LaserControlWidget(QGroupBox):
                 self.controller.setpoint = float(value)
             except (ValueError, TypeError) as e:
                 logging.error(f"Set point value is in wrong format: {e}")
+    
 
-
-    def update_status(self):
-        if not self.controller:
-            return
+    def update_status_display(self, new_status: dict):
+        """
+        this method doesn't manipulate controller to avoid freezing of GUI.
+        Instead, this receives status dictionary (new_status) from polling thread and update UIs. 
+        """
         try:
-            self.setpoint_spin.blockSignals(True)
-            self.setpoint_spin.setValue(self.controller.setpoint)
-            self.setpoint_spin.blockSignals(False) # avoid triggering valueChanged signal
-            self.temp_label.setText(f"Temp: {self.controller.temperature:.1f} °C")
-
-            current_status = self.controller.status
-
-            self.laser_btn.setText("Turn Laser OFF" if current_status.emission_on else "Turn Laser ON")
-            self.guide_btn.setText("Turn Guide OFF" if current_status.guide_laser_on else "Turn Guide ON")
-            self.laser_status_display.setText("Status:\n\t" + self.get_status_message(current_status))
+            setpoint = new_status["setpoint"]
+            temperature = new_status["temperature"]
+            status = new_status["status"]
+            self.setpoint_spin.blockSignals(True)   # avoid triggering valueChanged signal
+            self.setpoint_spin.setValue(setpoint)
+            self.setpoint_spin.blockSignals(False)
+            self.temp_label.setText(f"Temp: {temperature:.1f} °C")
+            self.laser_btn.setText("Turn Laser OFF" if status.emission_on else "Turn Laser ON")
+            self.guide_btn.setText("Turn Guide OFF" if status.guide_laser_on else "Turn Guide ON")
+            self.laser_status_display.setText("Status:\n\t" + self.get_status_message(status))
         except Exception as e:
             self.status_label.setText(f"Error: {e}")
 
@@ -221,7 +229,19 @@ class LaserPollingThread(QThread):
 
     def run(self):
         while self._running:
-            pass
+            if not self.controller:
+                try:
+                    setpoint = self.controller.setpoint # Optional[float]
+                    temperature = self.controller.temperature   # Optional[float]
+                    status = self.controller.status #LaserStatus
+                    new_status = {
+                        "setpoint": setpoint,
+                        "temperature": temperature,
+                        "status": status
+                    }
+                    self.status_updated.emit(new_status)
+                except Exception as e:
+                    logging.error(f"Polling laser status failed: {e}")
 
     
     def stop(self):
