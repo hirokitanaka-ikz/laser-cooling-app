@@ -3,6 +3,7 @@ from PyQt6.QtWidgets import (
     QSpinBox, QFormLayout
 )
 from PyQt6.QtCore import QThread, pyqtSignal
+import pyqtgraph as pg
 import numpy as np
 import seabreeze
 seabreeze.use('cseabreeze')
@@ -23,6 +24,11 @@ class OceanSpectrometerWidget(QGroupBox):
         self.wavelength = np.array([])
         self.intensity = np.array([])
         self.dark = np.array([])
+
+        self.plot_widget = pg.PlotWidget()
+        self.plot_widget.setBackground("w")
+        self.plot_widget.setLabel("left", "Intensity", units="counts")
+        self.plot_widget.setLabel("bottom", "Wavelength", units="nm")
 
         # UI Elements
         self.connect_btn = QPushButton("Connect")
@@ -61,6 +67,8 @@ class OceanSpectrometerWidget(QGroupBox):
 
         layout.addWidget(self.start_btn)
         layout.addWidget(self.dark_btn)
+
+        layout.addWidget(self.plot_widget)
 
         self.setLayout(layout)
 
