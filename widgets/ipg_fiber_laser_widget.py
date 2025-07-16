@@ -45,7 +45,7 @@ class LaserControlWidget(QGroupBox):
         self.setpoint_spin.setSuffix(" %")
         self.setpoint_spin.setDecimals(2)
         self.setpoint_spin.setRange(0.0, 100.0)
-        self.setpoint_spin.setSingleStep(0.1)
+        self.setpoint_spin.setSingleStep(0.5)
         self.setpoint_spin.valueChanged.connect(self.update_setpoint)
         self.setpoint_spin.setEnabled(False)
 
