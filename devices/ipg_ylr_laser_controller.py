@@ -348,12 +348,17 @@ class IPGYLRLaserController:
     def output_power(self) -> Optional[float]:
         command = "ROP"
         res = self._send_receive(command)
-        if res is None:
-            return None
         try:
-            return float(res.split(": ")[1])
-        except (IndexError, ValueError) as e:
-            logging.error(f"Failed to parse output power: {res} ({e})")
+            val = res.split(": ")[1]
+        except IndexError as e:
+            logging.error(f"Failed to parse output power response: {res} ({e})")
+            return None
+        if val == "Off":
+            return 0.0
+        try:
+            return float(val)
+        except (TypeError, ValueError) as e:
+            logging.error(f"Failed to read output power value: {res} ({e})")
             return None
     
 
