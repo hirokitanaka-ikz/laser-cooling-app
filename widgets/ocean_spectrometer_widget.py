@@ -1,8 +1,8 @@
 from PyQt6.QtWidgets import (
-    QGroupBox, QPushButton, QLabel, QVBoxLayout, QHBoxLayout,
-    QSpinBox, QMessageBox, QLineEdit, QFormLayout
+    QGroupBox, QPushButton, QLabel, QVBoxLayout,
+    QSpinBox, QFormLayout
 )
-from PyQt6.QtCore import QTimer, QThread, pyqtSignal
+from PyQt6.QtCore import QThread, pyqtSignal
 import numpy as np
 import seabreeze
 seabreeze.use('cseabreeze')
@@ -35,12 +35,15 @@ class OceanSpectrometerWidget(QGroupBox):
         self.integration_time_spin.setSuffix(" us")
         self.integration_time_spin.setSingleStep(10)
         self.integration_time_spin.valueChanged.connect(self.set_integration_time)
+        self.integration_time_spin.setEnabled(False)
 
         self.start_btn = QPushButton("Start")
         self.start_btn.clicked.connect(self.start)
+        self.start_btn.setEnabled(False)
 
         self.dark_btn = QPushButton("Capture Dark")
         self.dark_btn.clicked.connect(self.capture_dark)
+        self.dark_btn.setEnabled(False)
 
         # layout
         layout = QVBoxLayout()
@@ -57,6 +60,7 @@ class OceanSpectrometerWidget(QGroupBox):
         layout.addLayout(parameter_from)
 
         layout.addWidget(self.start_btn)
+        layout.addWidget(self.dark_btn)
 
         self.setLayout(layout)
 
@@ -70,11 +74,15 @@ class OceanSpectrometerWidget(QGroupBox):
                 self.serial_number_label.setText(self.spectrometer.serial_number)
                 self.integration_time_spin.setRange(self.spectrometer.integration_time_micros_limits)
                 self.connect_btn.setText("Disconnect")
+                self.integration_time_spin.setEnabled(True)
+                self.start_btn.setEnabled(True)
+                self.dark_btn.setEnabled(True)
                 self.wavelength = self.spectrometer.wavelengths()
                 self.intensity = np.zeros_like(self.wavelength)
                 self.dark = np.zeros_like(self.wavelength)
+                
                 logging.info("Spectrometer connected")
-            except (TimeoutError, RuntimeError, OSError) as e:
+            except (TypeError, TimeoutError, RuntimeError, OSError) as e:
                 logging.error(f"Failed to connect spectrometer: {e}")
                 return
         else:
@@ -85,11 +93,10 @@ class OceanSpectrometerWidget(QGroupBox):
             self.model_type_label.setText("---")
             self.serial_number_label.setText("---")
             self.connect_btn.setText("Connect")
+            self.integration_time_spin.setEnabled(False)
+            self.start_btn.setEnabled(False)
+            self.dark_btn.setEnabled(False)
             logging.info("Spectrometer disconnected")
-    
-
-    def __del__(self):
-        self.disconnect()
     
 
     def set_integration_time(self, new_value:int):
@@ -98,10 +105,15 @@ class OceanSpectrometerWidget(QGroupBox):
     
 
     def capture_dark(self):
+        if self.spectrometer is None:
+            return
         self.dark = self.intensity
+        logging.info(f"Capture current spectrum as dark")
     
 
     def start(self):
+        if self.spectrometer is None:
+            return
         if self.polling_thread is None:
             self.polling_thread = SpectrometerPollingThread(self.spectrometer, interval=0.5)
             self.polling_thread.updated.connect(self.update_spectrum)
@@ -115,7 +127,6 @@ class OceanSpectrometerWidget(QGroupBox):
 
     def update_spectrum(self, intensity_array):
         self.intensity = intensity_array
-
 
 
 class SpectrometerPollingThread(QThread):
