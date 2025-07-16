@@ -9,3 +9,6 @@ version = "0.1.0"
 
 [dependencies]
 python = "3.10.*"
+scipy = ">=1.15.2,<2"
+seabreeze = ">=2.10.1,<3"
+numpy = ">=2.2.6,<3"
