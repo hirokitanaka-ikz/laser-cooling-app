@@ -18,7 +18,7 @@ class ElliptecRotatorWidget(QGroupBox):
     """
 
     def __init__(self, parent=None):
-        super().__init__("Ocean Optics Spectrometer Control", parent)
+        super().__init__("Elliptec Rotator Control", parent)
         self.controller = None
         self.rotator = None
         self.polling_thread = None

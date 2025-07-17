@@ -4,6 +4,7 @@ from widgets.ipg_fiber_laser_widget import LaserControlWidget
 from widgets.ophir_powermeter_widget import OphirPowerMeterWidget
 from widgets.ocean_spectrometer_widget import OceanSpectrometerWidget
 from widgets.elliptec_rotator_widget import ElliptecRotatorWidget
+from widgets.flir_camera_widget import FlirCameraWidget
 
 
 def main():
@@ -13,7 +14,7 @@ def main():
 
     win = QWidget()
     win.setWindowTitle("Laser Cooling App")
-    win.resize(600, 400)
+    win.resize(600, 600)
     layout = QVBoxLayout()
     tab_widget = QTabWidget()
 
@@ -21,11 +22,13 @@ def main():
     powermeter_widget = OphirPowerMeterWidget()
     spectrometer_widget = OceanSpectrometerWidget()
     rotator_widget = ElliptecRotatorWidget()
+    flir_cam_widget = FlirCameraWidget()
 
-    tab_widget.addTab(laser_widget, "Laser Control")
-    tab_widget.addTab(powermeter_widget, "Power Meter Control")
-    tab_widget.addTab(spectrometer_widget, "Spectrometer Control")
-    tab_widget.addTab(rotator_widget, "Elliptec Rotator Control")
+    tab_widget.addTab(laser_widget, "Laser")
+    tab_widget.addTab(powermeter_widget, "Power Meter")
+    tab_widget.addTab(spectrometer_widget, "Spectrometer")
+    tab_widget.addTab(rotator_widget, "Elliptec Rotator")
+    tab_widget.addTab(flir_cam_widget, "Thermal Camera")
 
 
     layout.addWidget(tab_widget)

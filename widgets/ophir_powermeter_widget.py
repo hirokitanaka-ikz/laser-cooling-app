@@ -5,6 +5,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 from PyQt6.QtGui import QFont
 from devices.ophir_juno_controller import OphirJunoController
+from pywintypes import com_error
 import logging
 import time
 
@@ -16,7 +17,7 @@ class OphirPowerMeterWidget(QGroupBox):
     def __init__(self, parent=None):
         super().__init__("Ophir Power Meter Control", parent)
 
-        self.controller = OphirJunoController()
+        self.controller = None
         self.last_power = None  # keep latest value here to communicate with data class for saving
 
         # UI Elements
@@ -80,7 +81,12 @@ class OphirPowerMeterWidget(QGroupBox):
         """
         get usb devices and update combo box
         """
-        self.device_select_combo.addItems(self.controller.device_list)
+        try:
+            self.controller = OphirJunoController()
+            self.device_select_combo.addItems(self.controller.device_list)
+        except com_error as e:
+            logging.error(f"Failed to scan USB devices: {e}")
+
     
 
     def clear_info(self):

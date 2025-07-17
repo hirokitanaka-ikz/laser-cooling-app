@@ -80,7 +80,7 @@ class OceanSpectrometerWidget(QGroupBox):
                 self.spectrometer = Spectrometer.from_first_available()
                 # self.spectrometer.from_first_available()
                 logging.info("Spectrometer connected")
-            except (TypeError, TimeoutError, RuntimeError, OSError) as e:
+            except (seabreeze.cseabreeze._wrapper.SeaBreezeError, TypeError, TimeoutError, RuntimeError, OSError) as e:
                 logging.error(f"Failed to connect spectrometer: {e}")
                 return
             try: # initialize spectrometer

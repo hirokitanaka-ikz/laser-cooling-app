@@ -1,5 +1,5 @@
 import os
-import PySpin
+import PySpin # install using wheel!
 import numpy as np
 import logging
 
@@ -23,11 +23,17 @@ class FlirCameraController:
         # self.ContinueRecording = True
         self._ir_type = IRFormatType.RADIOMETRIC
         self._is_connected = False
+        self._streaming = False
     
     
     @property
-    def is_connected(self) -> bool:
+    def connected(self) -> bool:
         return self._is_connected
+    
+
+    @property
+    def streaming(self) -> bool:
+        return self._streaming
 
 
     def connect(self):
@@ -54,7 +60,7 @@ class FlirCameraController:
     def disconnect(self):
         try:
             if self._is_connected:
-                self.camera.EndAcquisition()
+                self.stop_stream()
                 self.camera.DeInit()
                 del self.camera
             self._cam_list.Clear()
@@ -63,7 +69,20 @@ class FlirCameraController:
         except Exception as e:
             logging.error(f"Failed to disconnect camera: {e}")
             self._is_connected = False
+    
 
+    def __del__(self):
+        self.disconnect()
+    
+
+    @property
+    def serial_number(self) -> str:
+        self.NodeDeviceSerialNumber = PySpin.CStringPtr(self.NodeMapTlDevice.GetNode('DeviceSerialNumber'))
+        if PySpin.IsAvailable(self.NodeDeviceSerialNumber) and PySpin.IsReadable(self.NodeDeviceSerialNumber):
+            self.DeviceSerialNumber = self.NodeDeviceSerialNumber.GetValue()
+            logging.info(f"Device serial number retrieved as {self.DeviceSerialNumber}")
+            return 
+            
 
     @property
     def version(self) -> str:
@@ -108,12 +127,6 @@ class FlirCameraController:
 
             self.camera.BeginAcquisition()
             
-            self.DeviceSerialNumber = ''
-            self.NodeDeviceSerialNumber = PySpin.CStringPtr(self.NodeMapTlDevice.GetNode('DeviceSerialNumber'))
-            if PySpin.IsAvailable(self.NodeDeviceSerialNumber) and PySpin.IsReadable(self.NodeDeviceSerialNumber):
-                self.DeviceSerialNumber = self.NodeDeviceSerialNumber.GetValue()
-                logging.info(f"Device serial number retrieved as {self.DeviceSerialNumber}")
-
              # Retrieve Calibration details
             self.NodeCalibrationQueryR = PySpin.CFloatPtr(self.Nodemap.GetNode('R'))
             self.R = self.NodeCalibrationQueryR.GetValue()
@@ -159,24 +172,32 @@ class FlirCameraController:
                 self.Tau = self.X * np.exp(-np.sqrt(self.Dist) * (self.A1 + self.B1 * np.sqrt(self.H2O))) + (
                     1 - self. X) * np.exp(-np.sqrt(self.Dist) * (self.A2 + self.B2 * np.sqrt(self.H2O)))
                 # Pseudo radiance of the reflected environment
-                self.r1 = ((1 - self.Emiss) / self.Emiss) * \
-                    (self.R / (np.exp(self.B / self.TRefl) - self.F))
+                self.r1 = ((1 - self.Emiss) / self.Emiss) * (self.R / (np.exp(self.B / self.TRefl) - self.F))
                 # Pseudo radiance of the atmosphere
-                self.r2 = ((1 - self.Tau) / (self.Emiss * self.Tau)) * \
-                    (self.R / (np.exp(self.B / self.TAtm) - self.F))
+                self.r2 = ((1 - self.Tau) / (self.Emiss * self.Tau)) * (self.R / (np.exp(self.B / self.TAtm) - self.F))
                 # Pseudo radiance of the external optics
                 self.r3 = ((1 - self.ExtOpticsTransmission) / (self.Emiss * self.Tau *
                            self.ExtOpticsTransmission)) * (self.R / (np.exp(self.B / self.ExtOpticsTemp) - self.F))
                 self.K2 = self.r1 + self.r2 + self.r3
             self._is_connected = True # necessary?
+            self._streaming = True
             logging.info("Camera started streaming")
-
         except PySpin.SpinnakerException as e:
             logging.error(f"Failed to start streaming: {e}")
+    
+
+    def stop_stream(self):
+        if self._streaming:
+            try:
+                self.camera.EndAcquisition()
+            except Exception as e:
+                logging.error(f"Failed to stop streaming: {e}")
+            finally:
+                self._streaming = False
 
 
     def get_image(self):
-        if self._is_connected == True:
+        if self._is_connected and self._streaming:
             try:
                 self.ImageResult = self.camera.GetNextImage(1000)
                 if self.ImageResult.IsIncomplete():
@@ -186,16 +207,12 @@ class FlirCameraController:
                     self.ImageData = self.ImageResult.GetNDArray()
 
                     if self._ir_type == IRFormatType.LINEAR_10MK:
-                        self.ImageTempCelsiusHigh = (
-                            self.ImageData * 0.01) - 273.15
+                        self.ImageTempCelsiusHigh = (self.ImageData * 0.01) - 273.15
                     elif self._ir_type == IRFormatType.LINEAR_100MK:
-                        self.ImageTempCelsiusLow = (
-                            self.ImageData * 0.1) - 273.15
+                        self.ImageTempCelsiusLow = (self.ImageData * 0.1) - 273.15
                     elif self._ir_type == IRFormatType.RADIOMETRIC:
-                        self.ImageRadiance = (
-                            self.ImageData - self.J0) / self.J1
-                        self.ImageTemp = (
-                            self.B / np.log(self.R / ((self.ImageRadiance / self.Emiss / self.Tau) - self.K2) + self.F)) - 273.15
+                        self.ImageRadiance = (self.ImageData - self.J0) / self.J1
+                        self.ImageTemp = (self.B / np.log(self.R / ((self.ImageRadiance / self.Emiss / self.Tau) - self.K2) + self.F)) - 273.15
                 self.ImageResult.Release()
                 return self.ImageTemp
             except PySpin.SpinnakerException as e:
@@ -205,33 +222,24 @@ class FlirCameraController:
 
     def setup_camera(self):
         self.StreamNodeMap = self.camera.GetTLStreamNodeMap()
-        self.NodeBufferHandlingMode = PySpin.CEnumerationPtr(
-            self.StreamNodeMap.GetNode('StreamBufferHandlingMode'))
-        self.NodePixelFormat = PySpin.CEnumerationPtr(
-            self.Nodemap.GetNode('PixelFormat'))
-        self.NodePixelFormatMono16 = PySpin.CEnumEntryPtr(
-            self.NodePixelFormat.GetEntryByName('Mono16'))
+        self.NodeBufferHandlingMode = PySpin.CEnumerationPtr(self.StreamNodeMap.GetNode('StreamBufferHandlingMode'))
+        self.NodePixelFormat = PySpin.CEnumerationPtr(self.Nodemap.GetNode('PixelFormat'))
+        self.NodePixelFormatMono16 = PySpin.CEnumEntryPtr(self.NodePixelFormat.GetEntryByName('Mono16'))
         self.PixelFormatMono16 = self.NodePixelFormatMono16.GetValue()
         self.NodePixelFormat.SetIntValue(self.PixelFormatMono16)
         if self._ir_type == IRFormatType.LINEAR_10MK:
-            self.NodeIRFormat = PySpin.CEnumerationPtr(
-                self.Nodemap.GetNode('IRFormat'))
-            self.NodeTempLinearHigh = PySpin.CEnumEntryPtr(
-                self.NodeIRFormat.GetEntryByName('TemperatureLinear10mK'))
+            self.NodeIRFormat = PySpin.CEnumerationPtr(self.Nodemap.GetNode('IRFormat'))
+            self.NodeTempLinearHigh = PySpin.CEnumEntryPtr(self.NodeIRFormat.GetEntryByName('TemperatureLinear10mK'))
             self.NodeTempHigh = self.NodeTempLinearHigh.GetValue()
             self.NodeIRFormat.SetIntValue(self.NodeTempHigh)
         if self._ir_type == IRFormatType.LINEAR_100MK:
-            self.NodeIRFormat = PySpin.CEnumerationPtr(
-                self.Nodemap.GetNode('IRFormat'))
-            self.NodeTempLinearLow = PySpin.CEnumEntryPtr(
-                self.NodeIRFormat.GetEntryByName('TemperatureLinear100mK'))
+            self.NodeIRFormat = PySpin.CEnumerationPtr(self.Nodemap.GetNode('IRFormat'))
+            self.NodeTempLinearLow = PySpin.CEnumEntryPtr(self.NodeIRFormat.GetEntryByName('TemperatureLinear100mK'))
             self.NodeTempLow = self.NodeTempLinearLow.GetValue()
             self.NodeIRFormat.SetIntValue(self.NodeTempLow)
         if self._ir_type == IRFormatType.RADIOMETRIC:
-            self.NodeIRFormat = PySpin.CEnumerationPtr(
-                self.Nodemap.GetNode('IRFormat'))
-            self.NodeTempLinearLow = PySpin.CEnumEntryPtr(
-                self.NodeIRFormat.GetEntryByName('Radiometric'))
+            self.NodeIRFormat = PySpin.CEnumerationPtr(self.Nodemap.GetNode('IRFormat'))
+            self.NodeTempLinearLow = PySpin.CEnumEntryPtr(self.NodeIRFormat.GetEntryByName('Radiometric'))
             self.NodeTempLow = self.NodeTempLinearLow.GetValue()
             self.NodeIRFormat.SetIntValue(self.NodeTempLow)
 
