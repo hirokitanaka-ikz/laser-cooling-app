@@ -252,7 +252,3 @@ class OphirJunoController:
         except com_error as e:
             logging.error(f"Failed to save setting: {e}")
 
-
-
-
-    

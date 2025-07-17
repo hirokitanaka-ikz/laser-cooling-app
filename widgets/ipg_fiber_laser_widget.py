@@ -2,7 +2,7 @@ from PyQt6.QtWidgets import (
     QGroupBox, QPushButton, QLabel, QVBoxLayout, QHBoxLayout,
     QDoubleSpinBox, QMessageBox, QLineEdit, QFormLayout
 )
-from PyQt6.QtCore import QTimer, QThread, pyqtSignal
+from PyQt6.QtCore import QThread, pyqtSignal
 from devices.ipg_ylr_laser_controller import IPGYLRLaserController, LaserStatus
 import logging
 import time
@@ -20,9 +20,6 @@ class LaserControlWidget(QGroupBox):
         super().__init__("IPG Fiber Laser Control", parent)
 
         self.controller = IPGYLRLaserController()
-        # self.timer = QTimer(self)
-        # self.timer.setInterval(500) # ms
-        # self.timer.timeout.connect(self.update_status)
         self.polling_thread = None
         
         # Connection input fields
@@ -48,7 +45,7 @@ class LaserControlWidget(QGroupBox):
         self.setpoint_spin.setSuffix(" %")
         self.setpoint_spin.setDecimals(2)
         self.setpoint_spin.setRange(0.0, 100.0)
-        self.setpoint_spin.setSingleStep(0.1)
+        self.setpoint_spin.setSingleStep(0.5)
         self.setpoint_spin.valueChanged.connect(self.update_setpoint)
         self.setpoint_spin.setEnabled(False)
 
