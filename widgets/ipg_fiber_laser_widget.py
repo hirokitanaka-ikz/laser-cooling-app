@@ -2,7 +2,7 @@ from PyQt6.QtWidgets import (
     QGroupBox, QPushButton, QLabel, QVBoxLayout, QHBoxLayout,
     QDoubleSpinBox, QMessageBox, QLineEdit, QFormLayout
 )
-from PyQt6.QtCore import QTimer, QThread, pyqtSignal
+from PyQt6.QtCore import QThread, pyqtSignal
 from devices.ipg_ylr_laser_controller import IPGYLRLaserController, LaserStatus
 import logging
 import time
