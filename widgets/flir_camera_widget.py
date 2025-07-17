@@ -1,6 +1,6 @@
 from PyQt6.QtWidgets import (
     QGroupBox, QPushButton, QLabel, QVBoxLayout, QHBoxLayout,
-    QComboBox, QSpinBox, QFormLayout, QMessageBox
+    QSpinBox, QFormLayout, QMessageBox
 )
 from PyQt6.QtCore import QThread, pyqtSignal
 from devices.flir_camera_controller import FlirCameraController
@@ -55,7 +55,6 @@ class FlirCameraWidget(QGroupBox):
         self.toolbar = NavigationToolbar(self.canvas, self)
 
 
-
         # layout
         layout = QVBoxLayout()
         layout.addWidget(self.connect_btn)
@@ -85,6 +84,7 @@ class FlirCameraWidget(QGroupBox):
 
         layout.addLayout(hbox)
         layout.addWidget(self.canvas)
+        layout.addWidget(self.toolbar)
         self.setLayout(layout)
     
 
@@ -135,6 +135,13 @@ class FlirCameraWidget(QGroupBox):
         pass
 
 
+    def move_rect(self):
+        """
+        identify which widget emits signal --> self.sender()
+        """
+        pass
+
+
 class ThermalImageCanvas(FigureCanvas):
     def __init__(self, parent=None):
         self.fig = Figure(figsize=(4, 3))
@@ -158,13 +165,13 @@ class ThermalImageCanvas(FigureCanvas):
         self.ax.add_patch(self.sample_rect)
         self.ax.add_patch(self.reference_rect)
 
+
 """
 1. Polling start
 2. get image from camera and updated signal emits
 3. update image method -> Widget class transfers new_image to Canvas
 4. calculate average temperature using rect info
 """
-
 
 class FlirCameraPollingThread(QThread):
     updated = pyqtSignal(np.ndarray)
