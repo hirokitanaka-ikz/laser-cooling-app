@@ -29,6 +29,7 @@ class OceanSpectrometerWidget(QGroupBox):
         self.plot_widget.setBackground("w")
         self.plot_widget.setLabel("left", "Intensity", units="counts")
         self.plot_widget.setLabel("bottom", "Wavelength", units="nm")
+        self.plot = self.plot_widget.plot(self.wavelength, self.intensity, pen="b")
 
         # UI Elements
         self.connect_btn = QPushButton("Connect")
@@ -76,11 +77,17 @@ class OceanSpectrometerWidget(QGroupBox):
     def toggle_connect(self):
         if self.spectrometer is None:
             try:
-                self.spectrometer = Spectrometer()
-                self.spectrometer.from_first_available()
+                self.spectrometer = Spectrometer.from_first_available()
+                # self.spectrometer.from_first_available()
+                logging.info("Spectrometer connected")
+            except (TypeError, TimeoutError, RuntimeError, OSError) as e:
+                logging.error(f"Failed to connect spectrometer: {e}")
+                return
+            try: # initialize spectrometer
                 self.model_type_label.setText(self.spectrometer.model)
                 self.serial_number_label.setText(self.spectrometer.serial_number)
-                self.integration_time_spin.setRange(self.spectrometer.integration_time_micros_limits)
+                min_integration_time, max_integration_time = self.spectrometer.integration_time_micros_limits
+                self.integration_time_spin.setRange(min_integration_time, max_integration_time)
                 self.connect_btn.setText("Disconnect")
                 self.integration_time_spin.setEnabled(True)
                 self.start_btn.setEnabled(True)
@@ -88,11 +95,8 @@ class OceanSpectrometerWidget(QGroupBox):
                 self.wavelength = self.spectrometer.wavelengths()
                 self.intensity = np.zeros_like(self.wavelength)
                 self.dark = np.zeros_like(self.wavelength)
-                
-                logging.info("Spectrometer connected")
-            except (TypeError, TimeoutError, RuntimeError, OSError) as e:
-                logging.error(f"Failed to connect spectrometer: {e}")
-                return
+            except (TypeError, TimeoutError, RuntimeError, OSError, Exception) as e:
+                logging.error(f"Failed to initialize spectrometer: {e}")
         else:
             if not self.polling_thread is None:
                 self.polling_thread.stop()
@@ -104,11 +108,12 @@ class OceanSpectrometerWidget(QGroupBox):
             self.integration_time_spin.setEnabled(False)
             self.start_btn.setEnabled(False)
             self.dark_btn.setEnabled(False)
+            self.start_btn.setText("Start")
             logging.info("Spectrometer disconnected")
     
 
     def set_integration_time(self, new_value:int):
-        self.spectrometer.integration_time_micros = new_value
+        self.spectrometer.integration_time_micros(new_value)
         logging.info(f"Integration Time changed to {new_value} us")
     
 
@@ -135,11 +140,12 @@ class OceanSpectrometerWidget(QGroupBox):
 
     def update_spectrum(self, intensity_array):
         self.intensity = intensity_array
+        self.plot.setData(self.wavelength, self.intensity - self.dark)
 
 
 class SpectrometerPollingThread(QThread):
     
-    updated = pyqtSignal(dict)
+    updated = pyqtSignal(np.ndarray)
 
     def __init__(self, spectrometer, interval=0.5, parent=None):
         super().__init__(parent)
