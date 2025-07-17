@@ -75,16 +75,22 @@ class ElliptecRotatorWidget(QGroupBox):
                 return
             try:
                 self.controller = elliptec.Controller(port, debug=False)
-                self.rotator = elliptec.Rotator(self.controller, debug=False)
-                logging.info("Elliptec device connected")
-                self.connect_btn.setText("Disconnect")
-                self.enable_control_uis(enable=True)
-                self.target_angle_spin.setValue(self.rotator.get_angle())
-                self.polling_thread = RotatorPollingThread(self.rotator, interval=0.5)
-                self.polling_thread.updated.connect(self.update_angle_display) # emit polling_thread.status_updated -> execute self.update_status_display
-                self.polling_thread.start()
             except Exception as e:
-                logging.error(f"Failed to connect to elliptec device: {e}")
+                logging.error(f"Failed to connect to Elliptec controller device: {e}")
+                return
+            try:
+                self.rotator = elliptec.Rotator(self.controller, debug=False)
+            except Exception as e:
+                self.controller = None
+                logging.error(f"Failed to connect Elliptec rotator: {e}")
+                return
+            logging.info("Elliptec device connected")
+            self.connect_btn.setText("Disconnect")
+            self.enable_control_uis(enable=True)
+            self.target_angle_spin.setValue(self.rotator.get_angle())
+            self.polling_thread = RotatorPollingThread(self.rotator, interval=0.5)
+            self.polling_thread.updated.connect(self.update_angle_display) # emit polling_thread.status_updated -> execute self.update_status_display
+            self.polling_thread.start()
         else:
             # disconnect
             if not self.polling_thread is None:
