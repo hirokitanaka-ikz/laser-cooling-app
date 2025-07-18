@@ -2,6 +2,7 @@ import os
 import PySpin # install using wheel!
 import numpy as np
 import logging
+from typing import Optional
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -19,15 +20,19 @@ class FlirCameraController:
 
     def __init__(self) -> None:
         self._ir_type = IRFormatType.RADIOMETRIC
-        self._system = None # system object is used to retrive the list of interfaces and cameras available
+        self._system = PySpin.System.GetInstance()
+         # system object is used to retrive the list of interfaces and cameras available
         self._cam_list = []
         self._camera = None
         self._streaming = False
     
     
     @property
-    def connected(self) -> bool:
-        return self._is_connected
+    def camera_connected(self) -> bool:
+        if self._camera is None:
+            return False
+        else:
+            return True
     
 
     @property
@@ -36,24 +41,23 @@ class FlirCameraController:
     
 
     def connect(self):
-        if not self._camera is None:
+        if self._camera is None:
             try:
-                self._system = PySpin.system.GetInstance()
                 self._cam_list = self._system.GetCameras() # PySpin.CameraList object
                 num_cameras = self._cam_list.GetSize()
                 logging.info(f"Number of cameras detected: {num_cameras}")
                 if num_cameras == 0:
                     self._cam_list.Clear()
-                    self._system.ReleaseInstance()
+                    logging.info("No FLIR camera found")
+                    return
                 self._camera = self._cam_list[0] # use the first available camera
                 self.NodeMapTlDevice = self.camera.GetTLDeviceNodeMap()
                 self._camera.Init()
                 self.Nodemap = self._camera.GetNodeMap()
-                self._is_connected = True
+                self.set_calibration_parameters()
                 logging.info("FLIR camera connected")
-            except Exception as e:
+            except PySpin.SpinnakerException as e:
                 logging.error(f"Failed to connect: {e}")
-                self._system.ReleaseInstance()
 
 
     def disconnect(self):
@@ -64,7 +68,6 @@ class FlirCameraController:
             self._camera.DeInit()
             self._camera = None
             self._cam_list.Clear()
-            self._system.ReleaseInstance()
             logging.info("FLIR camera disconnected")
         except Exception as e:
             logging.error(f"Failed to disconnect camera: {e}")
@@ -72,6 +75,7 @@ class FlirCameraController:
 
     def __del__(self):
         self.disconnect()
+        self._system.ReleaseInstance()
     
 
     @property
@@ -86,11 +90,11 @@ class FlirCameraController:
     @property
     def library_version(self) -> str:
         try:
-            version = self._system.GetLibraryversion()
+            version = self._system.GetLibraryVersion()
             version_string = f"{version.major}.{version.minor}.{version.type}.{version.build}"
             return version_string
-        except Exception as e:
-            logging.error("Failed to read version: {e}")
+        except PySpin.SpinnakerException as e:
+            logging.error(f"Failed to read version: {e}")
             return ""
     
 
@@ -100,8 +104,65 @@ class FlirCameraController:
 
 
     @property
-    def emissivity(self) -> float:
-        return self.Emiss
+    def emissivity(self) -> Optional[float]:
+        if self._camera is None:
+            return None
+        try:
+            return self._emissivity
+        except PySpin.SpinnakerException as e:
+            logging.error(f"Failed to read emissivity: {e}")
+            return None
+
+
+    def set_calibration_parameters(self) -> None:
+        # Retrieve Calibration details
+            self.NodeCalibrationQueryR = PySpin.CFloatPtr(self.Nodemap.GetNode('R'))
+            self._R = self.NodeCalibrationQueryR.GetValue()
+
+            self.NodeCalibrationQueryB = PySpin.CFloatPtr(self.Nodemap.GetNode('B'))
+            self._B = self.NodeCalibrationQueryB.GetValue()
+
+            self.NodeCalibrationQueryF = PySpin.CFloatPtr(self.Nodemap.GetNode('F'))
+            self._F = self.NodeCalibrationQueryF.GetValue()
+
+            self.NodeCalibrationQueryX = PySpin.CFloatPtr(self.Nodemap.GetNode('X'))
+            self._X = self.NodeCalibrationQueryX.GetValue()
+
+            self.NodeCalibrationQueryA1 = PySpin.CFloatPtr(self.Nodemap.GetNode('alpha1'))
+            self._A1 = self.NodeCalibrationQueryA1.GetValue()
+
+            self.NodeCalibrationQueryA2 = PySpin.CFloatPtr(self.Nodemap.GetNode('alpha2'))
+            self._A2 = self.NodeCalibrationQueryA2.GetValue()
+
+            self.NodeCalibrationQueryB1 = PySpin.CFloatPtr(self.Nodemap.GetNode('beta1'))
+            self._B1 = self.NodeCalibrationQueryB1.GetValue()
+
+            self.NodeCalibrationQueryB2 = PySpin.CFloatPtr(self.Nodemap.GetNode('beta2'))
+            self._B2 = self.NodeCalibrationQueryB2.GetValue()
+
+            self.NodeCalibrationQueryJ1 = PySpin.CFloatPtr(self.Nodemap.GetNode('J1'))
+            self._J1 = self.NodeCalibrationQueryJ1.GetValue()
+
+            self.NodeCalibrationQueryJ0 = PySpin.CIntegerPtr(self.Nodemap.GetNode('J0'))
+            self._J0 = self.NodeCalibrationQueryJ0.GetValue()
+
+            self._emissivity = 0.97
+            self._TRefl = 293.15
+            self._TAtm = 293.15
+            self._TAtmC = self._TAtm - 273.15
+            self._Humidity = 0.55
+            self._Dist = 2
+            self._ExtOpticsTransmission = 1
+            self._ExtOpticsTemp = self._TAtm
+            self._H2O = self._Humidity * np.exp(1.5587 + 0.06939 * self._TAtmC - 0.00027816 * self._TAtmC * self._TAtmC + 0.00000068455 * self._TAtmC * self._TAtmC * self._TAtmC)
+            self.Tau = self._X * np.exp(-np.sqrt(self._Dist) * (self._A1 + self._B1 * np.sqrt(self._H2O))) + (1 - self._X) * np.exp(-np.sqrt(self._Dist) * (self._A2 + self._B2 * np.sqrt(self._H2O)))
+            # Pseudo radiance of the reflected environment
+            self.r1 = ((1 - self._emissivity) / self._emissivity) * (self._R / (np.exp(self._B / self._TRefl) - self._F))
+            # Pseudo radiance of the atmosphere
+            self.r2 = ((1 - self.Tau) / (self._emissivity * self.Tau)) * (self._R / (np.exp(self._B / self._TAtm) - self._F))
+            # Pseudo radiance of the external optics
+            self.r3 = ((1 - self._ExtOpticsTransmission) / (self._emissivity * self.Tau * self._ExtOpticsTransmission)) * (self._R / (np.exp(self._B / self._ExtOpticsTemp) - self.F))
+            self.K2 = self.r1 + self.r2 + self.r3
 
 
     def start_stream(self):
@@ -126,57 +187,8 @@ class FlirCameraController:
             self.camera.BeginAcquisition()
             
             # Retrieve Calibration details
-            self.NodeCalibrationQueryR = PySpin.CFloatPtr(self.Nodemap.GetNode('R'))
-            self.R = self.NodeCalibrationQueryR.GetValue()
-
-            self.NodeCalibrationQueryB = PySpin.CFloatPtr(self.Nodemap.GetNode('B'))
-            self.B = self.NodeCalibrationQueryB.GetValue()
-
-            self.NodeCalibrationQueryF = PySpin.CFloatPtr(self.Nodemap.GetNode('F'))
-            self.F = self.NodeCalibrationQueryF.GetValue()
-
-            self.NodeCalibrationQueryX = PySpin.CFloatPtr(self.Nodemap.GetNode('X'))
-            self.X = self.NodeCalibrationQueryX.GetValue()
-
-            self.NodeCalibrationQueryA1 = PySpin.CFloatPtr(self.Nodemap.GetNode('alpha1'))
-            self.A1 = self.NodeCalibrationQueryA1.GetValue()
-
-            self.NodeCalibrationQueryA2 = PySpin.CFloatPtr(self.Nodemap.GetNode('alpha2'))
-            self.A2 = self.NodeCalibrationQueryA2.GetValue()
-
-            self.NodeCalibrationQueryB1 = PySpin.CFloatPtr(self.Nodemap.GetNode('beta1'))
-            self.B1 = self.NodeCalibrationQueryB1.GetValue()
-
-            self.NodeCalibrationQueryB2 = PySpin.CFloatPtr(self.Nodemap.GetNode('beta2'))
-            self.B2 = self.NodeCalibrationQueryB2.GetValue()
-
-            self.NodeCalibrationQueryJ1 = PySpin.CFloatPtr(self.Nodemap.GetNode('J1'))
-            self.J1 = self.NodeCalibrationQueryJ1.GetValue()
-
-            self.NodeCalibrationQueryJ0 = PySpin.CIntegerPtr(self.Nodemap.GetNode('J0'))
-            self.J0 = self.NodeCalibrationQueryJ0.GetValue()
-
-            if self._ir_type == IRFormatType.RADIOMETRIC:
-                self.Emiss = 0.97
-                self.TRefl = 293.15
-                self.TAtm = 293.15
-                self.TAtmC = self.TAtm - 273.15
-                self.Humidity = 0.55
-                self.Dist = 2
-                self.ExtOpticsTransmission = 1
-                self.ExtOpticsTemp = self.TAtm
-                self.H2O = self.Humidity * np.exp(1.5587 + 0.06939 * self.TAtmC - 0.00027816 *
-                                                  self.TAtmC * self.TAtmC + 0.00000068455 * self.TAtmC * self.TAtmC * self.TAtmC)
-                self.Tau = self.X * np.exp(-np.sqrt(self.Dist) * (self.A1 + self.B1 * np.sqrt(self.H2O))) + (
-                    1 - self. X) * np.exp(-np.sqrt(self.Dist) * (self.A2 + self.B2 * np.sqrt(self.H2O)))
-                # Pseudo radiance of the reflected environment
-                self.r1 = ((1 - self.Emiss) / self.Emiss) * (self.R / (np.exp(self.B / self.TRefl) - self.F))
-                # Pseudo radiance of the atmosphere
-                self.r2 = ((1 - self.Tau) / (self.Emiss * self.Tau)) * (self.R / (np.exp(self.B / self.TAtm) - self.F))
-                # Pseudo radiance of the external optics
-                self.r3 = ((1 - self.ExtOpticsTransmission) / (self.Emiss * self.Tau *
-                           self.ExtOpticsTransmission)) * (self.R / (np.exp(self.B / self.ExtOpticsTemp) - self.F))
-                self.K2 = self.r1 + self.r2 + self.r3
+            self.read_calibration_data()
+                
             self._streaming = True
             logging.info("Camera started streaming")
         except PySpin.SpinnakerException as e:
@@ -194,7 +206,7 @@ class FlirCameraController:
         
 
     def get_image(self):
-        if self._is_connected and self._streaming:
+        if self._streaming:
             try:
                 self.ImageResult = self.camera.GetNextImage(1000)
                 if self.ImageResult.IsIncomplete():
