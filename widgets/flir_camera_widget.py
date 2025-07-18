@@ -138,6 +138,7 @@ class FlirCameraWidget(QGroupBox):
     def move_rect(self):
         """
         identify which widget emits signal --> self.sender()
+        sample_rect.set_width(), .set_x(), ...
         """
         pass
 
