@@ -18,16 +18,18 @@ def main():
     layout = QVBoxLayout()
     tab_widget = QTabWidget()
 
-    polling_interval = 0.25 # sec
+    polling_interval = 0.5 # sec
 
     laser_widget = LaserControlWidget(polling_interval=polling_interval)
-    powermeter_widget = OphirPowerMeterWidget(polling_interval=polling_interval)
+    powermeter_widget1 = OphirPowerMeterWidget(polling_interval=polling_interval)
+    powermeter_widget2 = OphirPowerMeterWidget(polling_interval=polling_interval)
     spectrometer_widget = OceanSpectrometerWidget(polling_interval=polling_interval)
     rotator_widget = ElliptecRotatorWidget(polling_interval=polling_interval)
     flir_cam_widget = FlirCameraWidget(polling_interval=polling_interval)
 
     tab_widget.addTab(laser_widget, "Laser")
-    tab_widget.addTab(powermeter_widget, "Power Meter")
+    tab_widget.addTab(powermeter_widget1, "Power Meter 1")
+    tab_widget.addTab(powermeter_widget2, "Power Meter 2")
     tab_widget.addTab(spectrometer_widget, "Spectrometer")
     tab_widget.addTab(rotator_widget, "Elliptec Rotator")
     tab_widget.addTab(flir_cam_widget, "Thermal Camera")

@@ -84,6 +84,7 @@ class OphirPowerMeterWidget(QGroupBox):
         """
         try:
             self.controller = OphirJunoController()
+            self.device_select_combo.clear()
             self.device_select_combo.addItems(self.controller.device_list)
         except com_error as e:
             logging.error(f"Failed to scan USB devices: {e}")
