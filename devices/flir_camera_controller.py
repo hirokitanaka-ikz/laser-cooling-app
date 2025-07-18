@@ -25,8 +25,8 @@ class FlirCameraController:
         self._cam_list = []
         self._camera = None
         self._streaming = False
-    
-    
+
+        
     @property
     def camera_connected(self) -> bool:
         if self._camera is None:
