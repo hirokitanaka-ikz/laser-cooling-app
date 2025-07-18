@@ -17,6 +17,16 @@ import time
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 
+def average_around_center(image:np.ndarray, x:int, y:int, w:int, h:int) -> float:
+        half_w = w // 2
+        half_h = h // 2
+        x_start = max(x - half_w, 0)
+        x_end = min(x + half_w + 1, image.shape[1])
+        y_start = max(y - half_h, 0)
+        y_end = min(y + half_h + 1, image.shape[0])
+        return np.mean(image[y_start:y_end, x_start:x_end])
+
+
 class FlirCameraWidget(QGroupBox):
     """
     Control widget for FLIR thermal camera;
@@ -52,15 +62,38 @@ class FlirCameraWidget(QGroupBox):
         self.sample_y_spin = QSpinBox()
         self.sample_w_spin = QSpinBox()
         self.sample_h_spin = QSpinBox()
+        self.sample_x_spin.valueChanged.connect(self.move_rect)
+        self.sample_y_spin.valueChanged.connect(self.move_rect)
+        self.sample_w_spin.valueChanged.connect(self.move_rect)
+        self.sample_h_spin.valueChanged.connect(self.move_rect)
+        self.sample_x_spin.setRange(0, 639)
+        self.sample_y_spin.setRange(0, 479)
+        self.sample_w_spin.setRange(1, 100)
+        self.sample_h_spin.setRange(1, 100)
+        self.sample_x_spin.setValue(280)
+        self.sample_y_spin.setValue(220)
+        self.sample_w_spin.setValue(50)
+        self.sample_h_spin.setValue(20)
 
         self.temperature_reference_label = QLabel("---")
         self.reference_x_spin = QSpinBox()
         self.reference_y_spin = QSpinBox()
         self.reference_w_spin = QSpinBox()
         self.reference_h_spin = QSpinBox()
+        self.reference_x_spin.valueChanged.connect(self.move_rect)
+        self.reference_y_spin.valueChanged.connect(self.move_rect)
+        self.reference_w_spin.valueChanged.connect(self.move_rect)
+        self.reference_h_spin.valueChanged.connect(self.move_rect)
+        self.reference_x_spin.setRange(0, 639)
+        self.reference_y_spin.setRange(0, 479)
+        self.reference_w_spin.setRange(1, 100)
+        self.reference_h_spin.setRange(1, 100)
+        self.reference_x_spin.setValue(280)
+        self.reference_y_spin.setValue(120)
+        self.reference_w_spin.setValue(50)
+        self.reference_h_spin.setValue(20)
 
         self.rect_spin_enabled(False)
-
 
         # layout
         layout = QVBoxLayout()
@@ -166,21 +199,47 @@ class FlirCameraWidget(QGroupBox):
 
     def update(self, new_image:np.ndarray):
         self.canvas.update_image(new_image)
-        # calculate average temperature
-        self.update_average_temperature()
+        self.update_average_temperature(new_image)
 
 
-    def update_average_temperature(self):
-        pass
+    def update_average_temperature(self, image):
+        sample_x = self.sample_x_spin.value()
+        sample_y = self.sample_y_spin.value()
+        sample_w = self.sample_w_spin.value()
+        sample_h = self.sample_h_spin.value()
+        T_sample = average_around_center(image, sample_x, sample_y, sample_w, sample_h)
+        self.temperature_sample_label.setText(f"{T_sample:.2f}°C")
+
+        reference_x = self.reference_x_spin.value()
+        reference_y = self.reference_y_spin.value()
+        reference_w = self.reference_w_spin.value()
+        reference_h = self.reference_h_spin.value()
+        T_reference = average_around_center(image, reference_x, reference_y, reference_w, reference_h)
+        self.temperature_reference_label.setText(f"{T_reference:.2f}°C")
 
 
-    def move_rect(self):
+    def move_rect(self, value):
         """
         identify which widget emits signal --> self.sender()
         sample_rect.set_width(), .set_x(), ...
         """
-        pass
-
+        if self.sender() == self.sample_x_spin:
+            self.canvas.sample_rect.set_x(value)
+        elif self.sender() == self.sample_y_spin:
+            self.canvas.sample_rect.set_y(value)
+        elif self.sender() == self.sample_w_spin:
+            self.canvas.sample_rect.set_width(value)
+        elif self.sender() == self.sample_h_spin:
+            self.canvas.sample_rect.set_height(value)
+        elif self.sender() == self.reference_x_spin:
+            self.canvas.reference_rect.set_x(value)
+        elif self.sender() == self.reference_y_spin:
+            self.canvas.reference_rect.set_y(value)
+        elif self.sender() == self.reference_w_spin:
+            self.canvas.reference_rect.set_width(value)
+        elif self.sender() == self.reference_h_spin:
+            self.canvas.reference_rect.set_height(value)
+            
 
 class ThermalImageCanvas(FigureCanvas):
     def __init__(self, parent=None):
@@ -195,6 +254,7 @@ class ThermalImageCanvas(FigureCanvas):
     def update_image(self, new_image:np.ndarray):
         if self.image is None:
             self.image = self.ax.imshow(new_image)
+            self.create_rects()
         else:
             self.image.set_data(new_image)
         self.draw()
@@ -207,22 +267,14 @@ class ThermalImageCanvas(FigureCanvas):
             self.draw()
         except Exception as e:
             logging.error(f"Failed to change cmap to {cmap}: {e}")
-
     
 
-    def create_rect(self):
+    def create_rects(self):
         self.sample_rect = patches.Rectangle(xy=(280, 220), width=60, height=20, linewidth=1, ls="dashed", edgecolor="c", facecolor="none")
         self.reference_rect = patches.Rectangle(xy=(280, 120), width=60, height=20, linewidth=1, ls="dashed", edgecolor="w", facecolor="none")
         self.ax.add_patch(self.sample_rect)
         self.ax.add_patch(self.reference_rect)
 
-
-"""
-1. Polling start
-2. get image from camera and updated signal emits
-3. update image method -> Widget class transfers new_image to Canvas
-4. calculate average temperature using rect info
-"""
 
 class FlirCameraPollingThread(QThread):
     updated = pyqtSignal(np.ndarray)
