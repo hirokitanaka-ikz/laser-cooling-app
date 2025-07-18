@@ -33,10 +33,11 @@ class FlirCameraWidget(QGroupBox):
     Using Spinnaker SDK (python ver 3.10)
     """
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, polling_interval=0.5):
         super().__init__("FLIR Camera Control", parent)
         self.controller = None
         self.polling_thread = None
+        self._polling_interval = polling_interval
         self.controller = FlirCameraController()
         self.canvas = ThermalImageCanvas(self)
         self.toolbar = NavigationToolbar(self.canvas, self)
@@ -62,10 +63,6 @@ class FlirCameraWidget(QGroupBox):
         self.sample_y_spin = QSpinBox()
         self.sample_w_spin = QSpinBox()
         self.sample_h_spin = QSpinBox()
-        self.sample_x_spin.valueChanged.connect(self.move_rect)
-        self.sample_y_spin.valueChanged.connect(self.move_rect)
-        self.sample_w_spin.valueChanged.connect(self.move_rect)
-        self.sample_h_spin.valueChanged.connect(self.move_rect)
         self.sample_x_spin.setRange(0, 639)
         self.sample_y_spin.setRange(0, 479)
         self.sample_w_spin.setRange(1, 100)
@@ -74,16 +71,16 @@ class FlirCameraWidget(QGroupBox):
         self.sample_y_spin.setValue(220)
         self.sample_w_spin.setValue(50)
         self.sample_h_spin.setValue(20)
+        self.sample_x_spin.valueChanged.connect(self.move_rect)
+        self.sample_y_spin.valueChanged.connect(self.move_rect)
+        self.sample_w_spin.valueChanged.connect(self.move_rect)
+        self.sample_h_spin.valueChanged.connect(self.move_rect)
 
         self.temperature_reference_label = QLabel("---")
         self.reference_x_spin = QSpinBox()
         self.reference_y_spin = QSpinBox()
         self.reference_w_spin = QSpinBox()
         self.reference_h_spin = QSpinBox()
-        self.reference_x_spin.valueChanged.connect(self.move_rect)
-        self.reference_y_spin.valueChanged.connect(self.move_rect)
-        self.reference_w_spin.valueChanged.connect(self.move_rect)
-        self.reference_h_spin.valueChanged.connect(self.move_rect)
         self.reference_x_spin.setRange(0, 639)
         self.reference_y_spin.setRange(0, 479)
         self.reference_w_spin.setRange(1, 100)
@@ -92,6 +89,10 @@ class FlirCameraWidget(QGroupBox):
         self.reference_y_spin.setValue(120)
         self.reference_w_spin.setValue(50)
         self.reference_h_spin.setValue(20)
+        self.reference_x_spin.valueChanged.connect(self.move_rect)
+        self.reference_y_spin.valueChanged.connect(self.move_rect)
+        self.reference_w_spin.valueChanged.connect(self.move_rect)
+        self.reference_h_spin.valueChanged.connect(self.move_rect)
 
         self.rect_spin_enabled(False)
 
@@ -165,7 +166,7 @@ class FlirCameraWidget(QGroupBox):
             try:
                 self.controller.start_stream()
                 self.stream_btn.setText("Stop Stream")
-                self.polling_thread = FlirCameraPollingThread(self.controller, interval=0.5)
+                self.polling_thread = FlirCameraPollingThread(self.controller, interval=self._polling_interval)
                 self.polling_thread.updated.connect(self.update)
                 self.polling_thread.start()
             except Exception as e:
@@ -239,7 +240,7 @@ class FlirCameraWidget(QGroupBox):
             self.canvas.reference_rect.set_width(value)
         elif self.sender() == self.reference_h_spin:
             self.canvas.reference_rect.set_height(value)
-            
+
 
 class ThermalImageCanvas(FigureCanvas):
     def __init__(self, parent=None):
@@ -279,7 +280,7 @@ class ThermalImageCanvas(FigureCanvas):
 class FlirCameraPollingThread(QThread):
     updated = pyqtSignal(np.ndarray)
 
-    def __init__(self, controller, interval=0.5, parent=None):
+    def __init__(self, controller, interval, parent=None):
         super().__init__(parent)
         self.controller = controller
         self.interval = interval

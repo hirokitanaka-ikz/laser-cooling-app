@@ -17,11 +17,12 @@ class ElliptecRotatorWidget(QGroupBox):
     use elliptec library https://github.com/roesel/elliptec
     """
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, polling_interval=0.5):
         super().__init__("Elliptec Rotator Control", parent)
         self.controller = None
         self.rotator = None
         self.polling_thread = None
+        self._polling_interval = polling_interval
 
         # UI Elements
         self.scan_port_btn = QPushButton("Scan COM Port")
@@ -88,7 +89,7 @@ class ElliptecRotatorWidget(QGroupBox):
             self.connect_btn.setText("Disconnect")
             self.enable_control_uis(enable=True)
             self.target_angle_spin.setValue(self.rotator.get_angle())
-            self.polling_thread = RotatorPollingThread(self.rotator, interval=0.5)
+            self.polling_thread = RotatorPollingThread(self.rotator, interval=self._polling_interval)
             self.polling_thread.updated.connect(self.update_angle_display) # emit polling_thread.status_updated -> execute self.update_status_display
             self.polling_thread.start()
         else:
@@ -140,7 +141,7 @@ class ElliptecRotatorWidget(QGroupBox):
 class RotatorPollingThread(QThread):
     updated = pyqtSignal(float)
 
-    def __init__(self, rotator, interval=0.5, parent=None):
+    def __init__(self, rotator, interval, parent=None):
         super().__init__(parent)
         self.rotator = rotator
         self.interval = interval

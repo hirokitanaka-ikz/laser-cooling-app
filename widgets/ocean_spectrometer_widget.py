@@ -16,11 +16,12 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 class OceanSpectrometerWidget(QGroupBox):
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, polling_interval=0.5):
         super().__init__("Ocean Optics Spectrometer Control", parent)
 
         self.spectrometer = None
         self.polling_thread = None
+        self._polling_interval = polling_interval
         self.wavelength = np.array([])
         self.intensity = np.array([])
         self.dark = np.array([])
@@ -128,7 +129,7 @@ class OceanSpectrometerWidget(QGroupBox):
         if self.spectrometer is None:
             return
         if self.polling_thread is None:
-            self.polling_thread = SpectrometerPollingThread(self.spectrometer, interval=0.5)
+            self.polling_thread = SpectrometerPollingThread(self.spectrometer, interval=self._polling_interval)
             self.polling_thread.updated.connect(self.update_spectrum)
             self.polling_thread.start()
             self.start_btn.setText("Stop")
@@ -152,7 +153,7 @@ class SpectrometerPollingThread(QThread):
     
     updated = pyqtSignal(np.ndarray)
 
-    def __init__(self, spectrometer, interval=0.5, parent=None):
+    def __init__(self, spectrometer, interval, parent=None):
         super().__init__(parent)
         self.spectrometer = spectrometer
         self.interval = interval

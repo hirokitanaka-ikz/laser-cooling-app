@@ -14,11 +14,12 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 class OphirPowerMeterWidget(QGroupBox):
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, polling_interval=0.5):
         super().__init__("Ophir Power Meter Control", parent)
 
         self.controller = None
         self.last_power = None  # keep latest value here to communicate with data class for saving
+        self._polling_interval = polling_interval
 
         # UI Elements
         self.scan_usb_btn = QPushButton("Scan USB")
@@ -117,7 +118,7 @@ class OphirPowerMeterWidget(QGroupBox):
                     self.wavelength_select_combo.setCurrentIndex(0)
 
                 self.connect_btn.setText("Disconnect")
-                self.polling_thread = PowerMeterPollingThread(self.controller, interval=0.5)
+                self.polling_thread = PowerMeterPollingThread(self.controller, interval=self._polling_interval)
                 self.polling_thread.updated.connect(self.update_value_display)
                 self.polling_thread.start()
         else: # controller connected
@@ -150,7 +151,7 @@ class PowerMeterPollingThread(QThread):
 
     updated = pyqtSignal(float)
 
-    def __init__(self, controller, interval=0.5, parent=None):
+    def __init__(self, controller, interval, parent=None):
         super().__init__(parent)
         self.controller = controller
         self.interval = interval
