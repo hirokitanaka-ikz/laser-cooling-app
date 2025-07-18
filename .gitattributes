@@ -4,4 +4,5 @@ pixi.lock merge=binary linguist-language=YAML linguist-generated=true
 * text=auto
 *.py text eol=lf
 *.toml text eol=lf
-*.lock text eol=lf
+*.lock text eol=lf# SCM syntax highlighting & preventing 3-way merges
+pixi.lock merge=binary linguist-language=YAML linguist-generated=true
