@@ -14,7 +14,7 @@ def main():
 
     win = QWidget()
     win.setWindowTitle("Laser Cooling App")
-    win.resize(600, 600)
+    win.resize(600, 800)
     layout = QVBoxLayout()
     tab_widget = QTabWidget()
 

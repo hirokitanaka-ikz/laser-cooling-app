@@ -28,6 +28,8 @@ class FlirCameraWidget(QGroupBox):
         self.controller = None
         self.polling_thread = None
         self.controller = FlirCameraController()
+        self.canvas = ThermalImageCanvas(self)
+        self.toolbar = NavigationToolbar(self.canvas, self)
 
         # UI Elements
         self.connect_btn = QPushButton("Connect")
@@ -41,6 +43,9 @@ class FlirCameraWidget(QGroupBox):
         self.stream_btn.setEnabled(False)
 
         self.cmap_combo = QComboBox()
+        self.cmap_combo.addItems(["viridis", "plasma", "inferno", "magma", "cividis"])
+        self.cmap_combo.setCurrentIndex(0)
+        self.cmap_combo.currentTextChanged.connect(self.canvas.change_cmap)
 
         self.temperature_sample_label = QLabel("---")
         self.sample_x_spin = QSpinBox()
@@ -55,9 +60,6 @@ class FlirCameraWidget(QGroupBox):
         self.reference_h_spin = QSpinBox()
 
         self.rect_spin_enabled(False)
-
-        self.canvas = ThermalImageCanvas(self)
-        self.toolbar = NavigationToolbar(self.canvas, self)
 
 
         # layout
@@ -74,6 +76,7 @@ class FlirCameraWidget(QGroupBox):
         layout.addLayout(info_form)
         
         layout.addWidget(self.stream_btn)
+        layout.addWidget(self.cmap_combo)
 
         sample_form = QFormLayout()
         sample_form.addRow("Sample Temperature:", self.temperature_sample_label)
@@ -130,7 +133,7 @@ class FlirCameraWidget(QGroupBox):
                 self.controller.start_stream()
                 self.stream_btn.setText("Stop Stream")
                 self.polling_thread = FlirCameraPollingThread(self.controller, interval=0.5)
-                self.polling_thread.updated.connect(self.update_image)
+                self.polling_thread.updated.connect(self.update)
                 self.polling_thread.start()
             except Exception as e:
                 logging.error(f"Failed to start stream: {e}")
@@ -161,8 +164,10 @@ class FlirCameraWidget(QGroupBox):
         self.reference_h_spin.setEnabled(enabled)
 
 
-    def update_image(self, new_image:np.ndarray):
+    def update(self, new_image:np.ndarray):
         self.canvas.update_image(new_image)
+        # calculate average temperature
+        self.update_average_temperature()
 
 
     def update_average_temperature(self):
@@ -179,7 +184,7 @@ class FlirCameraWidget(QGroupBox):
 
 class ThermalImageCanvas(FigureCanvas):
     def __init__(self, parent=None):
-        self.fig = Figure(figsize=(4, 3))
+        self.fig = Figure()
         self.ax = self.fig.add_subplot(111)
         self.ax.axis("off")
         super().__init__(self.fig)
@@ -189,10 +194,20 @@ class ThermalImageCanvas(FigureCanvas):
 
     def update_image(self, new_image:np.ndarray):
         if self.image is None:
-            self.image = self.ax.imshow(new_image, cmap="viridis")
+            self.image = self.ax.imshow(new_image)
         else:
             self.image.set_data(new_image)
         self.draw()
+    
+
+    def change_cmap(self, cmap:str):
+        try:
+            self.image.set_cmap(cmap)
+            logging.info(f"cmap changed to {cmap}")
+            self.draw()
+        except Exception as e:
+            logging.error(f"Failed to change cmap to {cmap}: {e}")
+
     
 
     def create_rect(self):

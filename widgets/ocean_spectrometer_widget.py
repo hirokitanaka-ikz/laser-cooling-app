@@ -142,6 +142,11 @@ class OceanSpectrometerWidget(QGroupBox):
         self.intensity = intensity_array
         self.plot.setData(self.wavelength, self.intensity - self.dark)
 
+    
+    def __del__(self):
+        if not self.spectrometer is None:
+            self.spectrometer.close()
+
 
 class SpectrometerPollingThread(QThread):
     
