@@ -53,6 +53,9 @@ class OceanSpectrometerWidget(QGroupBox):
         self.dark_btn.clicked.connect(self.capture_dark)
         self.dark_btn.setEnabled(False)
 
+        self.peak_wavelength_label = QLabel("---")
+        self.mean_wavelength_label = QLabel("---")
+
         # layout
         layout = QVBoxLayout()
 
@@ -69,6 +72,11 @@ class OceanSpectrometerWidget(QGroupBox):
 
         layout.addWidget(self.start_btn)
         layout.addWidget(self.dark_btn)
+
+        wavelength_form = QFormLayout()
+        wavelength_form.addRow("Peak Wavelength", self.peak_wavelength_label)
+        wavelength_form.addRow("Mean Wavelength", self.mean_wavelength_label)
+        layout.addLayout(wavelength_form)
 
         layout.addWidget(self.plot_widget)
 
@@ -141,7 +149,16 @@ class OceanSpectrometerWidget(QGroupBox):
 
     def update_spectrum(self, intensity_array):
         self.intensity = intensity_array
-        self.plot.setData(self.wavelength, self.intensity - self.dark)
+        intensity_corrected = self.intensity - self.dark
+        self.plot.setData(self.wavelength, intensity_corrected)
+        self.update_wavelength(intensity_corrected)
+
+
+    def update_wavelength(self, intensity_array):
+        peak_wavelength = self.wavelength[np.argmax(intensity_array)]
+        mean_wavelength = np.sum(self.wavelength * intensity_array) / np.sum(intensity_array)
+        self.peak_wavelength_label.setText(f"{peak_wavelength:.2f} nm")
+        self.mean_wavelength_label.setText(f"{mean_wavelength:.2f} nm")
 
     
     def __del__(self):
