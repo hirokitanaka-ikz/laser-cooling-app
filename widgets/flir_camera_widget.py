@@ -27,12 +27,14 @@ class FlirCameraWidget(QGroupBox):
         super().__init__("FLIR Camera Control", parent)
         self.controller = None
         self.polling_thread = None
+        self.controller = FlirCameraController()
+
 
         # UI Elements
         self.connect_btn = QPushButton("Connect")
         self.connect_btn.clicked.connect(self.toggle_connect)
 
-        self.version_label = QLabel("---")
+        self.library_version_label = QLabel(self.controller.library_version)
         self.emissivity_label = QLabel("---")
 
         self.stream_btn = QPushButton("Start Stream")
@@ -59,10 +61,14 @@ class FlirCameraWidget(QGroupBox):
 
         # layout
         layout = QVBoxLayout()
+
+        liberary_version_form = QFormLayout()
+        liberary_version_form.addRow("Version:", self.library_version_label)
+        layout.addLayout(liberary_version_form)
+
         layout.addWidget(self.connect_btn)
 
         info_form = QFormLayout()
-        info_form.addRow("Version:", self.version_label)
         info_form.addRow("Emissivity:", self.emissivity_label)
         layout.addLayout(info_form)
 
@@ -91,18 +97,18 @@ class FlirCameraWidget(QGroupBox):
     
 
     def toggle_connect(self):
-        if self.controller is None:
+        if not self.controller.camera_connected:
             # connect
             try:
-                self.controller = FlirCameraController()
                 self.controller.connect()
             except Exception as e:
                 self.controller = None
                 return
-            self.connect_btn.setText("Disconnect")
-            self.rect_spin_enabled(True)
-            self.version_label.setText(self.controller.version)
-            self.emissivity_label.setText(self.controller.emissivity)
+            if self.controller.camera_connected:
+                self.connect_btn.setText("Disconnect")
+                self.rect_spin_enabled(True)
+                self.version_label.setText(self.controller.library_version)
+                self.emissivity_label.setText(self.controller.emissivity)
         else:
             # disconnect
             self.controller.disconnect()
