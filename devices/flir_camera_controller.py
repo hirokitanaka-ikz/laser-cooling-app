@@ -17,12 +17,11 @@ class IRFormatType:
 
 class FlirCameraController:
 
-    ImageTemp = None
-
     def __init__(self) -> None:
-        # self.ContinueRecording = True
         self._ir_type = IRFormatType.RADIOMETRIC
-        self._is_connected = False
+        self._system = None # system object is used to retrive the list of interfaces and cameras available
+        self._cam_list = []
+        self._camera = None
         self._streaming = False
     
     
@@ -34,41 +33,41 @@ class FlirCameraController:
     @property
     def streaming(self) -> bool:
         return self._streaming
-
+    
 
     def connect(self):
-        if self._is_connected == False:
+        if not self._camera is None:
             try:
-                self.system = PySpin.system.GetInstance()
-                self._cam_list = self.system.GetCameras()
+                self._system = PySpin.system.GetInstance()
+                self._cam_list = self._system.GetCameras() # PySpin.CameraList object
                 num_cameras = self._cam_list.GetSize()
                 logging.info(f"Number of cameras detected: {num_cameras}")
                 if num_cameras == 0:
                     self._cam_list.Clear()
-                    self.system.ReleaseInstance()
-                self.camera = self._cam_list[0]
+                    self._system.ReleaseInstance()
+                self._camera = self._cam_list[0] # use the first available camera
                 self.NodeMapTlDevice = self.camera.GetTLDeviceNodeMap()
-                self.camera.Init()
-                self.Nodemap = self.camera.GetNodeMap()
+                self._camera.Init()
+                self.Nodemap = self._camera.GetNodeMap()
                 self._is_connected = True
                 logging.info("FLIR camera connected")
             except Exception as e:
                 logging.error(f"Failed to connect: {e}")
-                self.system.ReleaseInstance()
+                self._system.ReleaseInstance()
 
 
     def disconnect(self):
+        if self._camera is None:
+            return
         try:
-            if self._is_connected:
-                self.stop_stream()
-                self.camera.DeInit()
-                del self.camera
+            self.stop_stream()
+            self._camera.DeInit()
+            self._camera = None
             self._cam_list.Clear()
-            self.system.ReleaseInstance()
+            self._system.ReleaseInstance()
             logging.info("FLIR camera disconnected")
         except Exception as e:
             logging.error(f"Failed to disconnect camera: {e}")
-            self._is_connected = False
     
 
     def __del__(self):
@@ -85,10 +84,10 @@ class FlirCameraController:
             
 
     @property
-    def version(self) -> str:
+    def library_version(self) -> str:
         try:
-            version = self.system.GetLibraryversion()
-            version_string = f"{version.major}, {version.minor}, {version.type}, {version.build}"
+            version = self._system.GetLibraryversion()
+            version_string = f"{version.major}.{version.minor}.{version.type}.{version.build}"
             return version_string
         except Exception as e:
             logging.error("Failed to read version: {e}")
@@ -110,8 +109,7 @@ class FlirCameraController:
         logging.info("Image acquisition set up...")
 
         try:
-            self.NodeAcquisitionMode = PySpin.CEnumerationPtr(
-                self.Nodemap.GetNode('AcquisitionMode'))
+            self.NodeAcquisitionMode = PySpin.CEnumerationPtr(self.Nodemap.GetNode('AcquisitionMode'))
             if not PySpin.IsAvailable(self.NodeAcquisitionMode) or not PySpin.IsWritable(self.NodeAcquisitionMode):
                 logging.warning("Unable to set acquisition mode to continuous (enum retrieval). Aborting...")
                 return False
@@ -127,7 +125,7 @@ class FlirCameraController:
 
             self.camera.BeginAcquisition()
             
-             # Retrieve Calibration details
+            # Retrieve Calibration details
             self.NodeCalibrationQueryR = PySpin.CFloatPtr(self.Nodemap.GetNode('R'))
             self.R = self.NodeCalibrationQueryR.GetValue()
 
@@ -179,7 +177,6 @@ class FlirCameraController:
                 self.r3 = ((1 - self.ExtOpticsTransmission) / (self.Emiss * self.Tau *
                            self.ExtOpticsTransmission)) * (self.R / (np.exp(self.B / self.ExtOpticsTemp) - self.F))
                 self.K2 = self.r1 + self.r2 + self.r3
-            self._is_connected = True # necessary?
             self._streaming = True
             logging.info("Camera started streaming")
         except PySpin.SpinnakerException as e:
@@ -194,7 +191,7 @@ class FlirCameraController:
                 logging.error(f"Failed to stop streaming: {e}")
             finally:
                 self._streaming = False
-
+        
 
     def get_image(self):
         if self._is_connected and self._streaming:

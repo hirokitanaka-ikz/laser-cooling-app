@@ -51,6 +51,8 @@ class FlirCameraWidget(QGroupBox):
         self.reference_w_spin = QSpinBox()
         self.reference_h_spin = QSpinBox()
 
+        self.rect_spin_enabled(False)
+
         self.canvas = ThermalImageCanvas(self)
         self.toolbar = NavigationToolbar(self.canvas, self)
 
@@ -98,11 +100,15 @@ class FlirCameraWidget(QGroupBox):
                 self.controller = None
                 return
             self.connect_btn.setText("Disconnect")
+            self.rect_spin_enabled(True)
+            self.version_label.setText(self.controller.version)
+            self.emissivity_label.setText(self.controller.emissivity)
         else:
             # disconnect
             self.controller.disconnect()
             self.controller = None
             self.connect_btn.setText("Connect")
+            self.rect_spin_enabled(False)
     
 
     def toggle_stream(self):
@@ -126,6 +132,17 @@ class FlirCameraWidget(QGroupBox):
 
     def clear_uis(self):
         pass
+
+
+    def rect_spin_enabled(self, enabled:bool):
+        self.sample_x_spin.setEnabled(enabled)
+        self.sample_y_spin.setEnabled(enabled)
+        self.sample_w_spin.setEnabled(enabled)
+        self.sample_h_spin.setEnabled(enabled)
+        self.reference_x_spin.setEnabled(enabled)
+        self.reference_y_spin.setEnabled(enabled)
+        self.reference_w_spin.setEnabled(enabled)
+        self.reference_h_spin.setEnabled(enabled)
 
 
     def update_image(self):
