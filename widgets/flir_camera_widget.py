@@ -1,6 +1,6 @@
 from PyQt6.QtWidgets import (
     QGroupBox, QPushButton, QLabel, QVBoxLayout, QHBoxLayout,
-    QSpinBox, QFormLayout, QMessageBox
+    QSpinBox, QFormLayout, QComboBox
 )
 from PyQt6.QtCore import QThread, pyqtSignal
 from devices.flir_camera_controller import FlirCameraController
@@ -29,7 +29,6 @@ class FlirCameraWidget(QGroupBox):
         self.polling_thread = None
         self.controller = FlirCameraController()
 
-
         # UI Elements
         self.connect_btn = QPushButton("Connect")
         self.connect_btn.clicked.connect(self.toggle_connect)
@@ -39,7 +38,9 @@ class FlirCameraWidget(QGroupBox):
 
         self.stream_btn = QPushButton("Start Stream")
         self.stream_btn.clicked.connect(self.toggle_stream)
+        self.stream_btn.setEnabled(False)
 
+        self.cmap_combo = QComboBox()
 
         self.temperature_sample_label = QLabel("---")
         self.sample_x_spin = QSpinBox()
@@ -71,6 +72,8 @@ class FlirCameraWidget(QGroupBox):
         info_form = QFormLayout()
         info_form.addRow("Emissivity:", self.emissivity_label)
         layout.addLayout(info_form)
+        
+        layout.addWidget(self.stream_btn)
 
         sample_form = QFormLayout()
         sample_form.addRow("Sample Temperature:", self.temperature_sample_label)
@@ -102,34 +105,41 @@ class FlirCameraWidget(QGroupBox):
             try:
                 self.controller.connect()
             except Exception as e:
+                logging.error(e)
                 self.controller = None
                 return
-            if self.controller.camera_connected:
-                self.connect_btn.setText("Disconnect")
-                self.rect_spin_enabled(True)
-                self.version_label.setText(self.controller.library_version)
-                self.emissivity_label.setText(self.controller.emissivity)
         else:
             # disconnect
             self.controller.disconnect()
-            self.controller = None
             self.connect_btn.setText("Connect")
             self.rect_spin_enabled(False)
+            self.stream_btn.setEnabled(False)
+        if self.controller.camera_connected:
+            self.connect_btn.setText("Disconnect")
+            self.rect_spin_enabled(True)
+            self.stream_btn.setEnabled(True)
+            self.emissivity_label.setText(f"{self.controller.emissivity}")
     
 
     def toggle_stream(self):
-        if self.controller is None:
+        if not self.controller.camera_connected:
             return
-        if not self.streaming:
+        if not self.controller.streaming:
             # start stream
             try:
                 self.controller.start_stream()
                 self.stream_btn.setText("Stop Stream")
+                self.polling_thread = FlirCameraPollingThread(self.controller, interval=0.5)
+                self.polling_thread.updated.connect(self.update_image)
+                self.polling_thread.start()
             except Exception as e:
                 logging.error(f"Failed to start stream: {e}")
         else:
             # stop stream
             try:
+                if not self.polling_thread is None:
+                    self.polling_thread.stop()
+                    self.polling_thread = None
                 self.controller.stop_stream()
                 self.stream_btn.setText("Start Stream")
             except Exception as e:
@@ -151,8 +161,9 @@ class FlirCameraWidget(QGroupBox):
         self.reference_h_spin.setEnabled(enabled)
 
 
-    def update_image(self):
-        pass
+    def update_image(self, new_image:np.ndarray):
+        self.canvas.update_image(new_image)
+
 
     def update_average_temperature(self):
         pass
@@ -170,16 +181,17 @@ class ThermalImageCanvas(FigureCanvas):
     def __init__(self, parent=None):
         self.fig = Figure(figsize=(4, 3))
         self.ax = self.fig.add_subplot(111)
+        self.ax.axis("off")
         super().__init__(self.fig)
         self.setParent(parent)
-
         self.image = None
     
 
     def update_image(self, new_image:np.ndarray):
-        self.ax.clear()
-        self.image = self.ax.imshow(new_image, cmap="hot")
-        self.ax.axis("off")
+        if self.image is None:
+            self.image = self.ax.imshow(new_image, cmap="viridis")
+        else:
+            self.image.set_data(new_image)
         self.draw()
     
 
@@ -210,8 +222,8 @@ class FlirCameraPollingThread(QThread):
     def run(self):
         while self._running:
             try:
-                image = self.controller.get_image() # ??
-                if not image is None: # empty array?
+                image = self.controller.get_image()
+                if not image is None:
                     self.updated.emit(image)
             except Exception as e:
                 logging.error(f"Thermal camera polling failed: {e}")

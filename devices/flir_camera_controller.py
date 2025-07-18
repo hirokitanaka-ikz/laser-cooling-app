@@ -51,7 +51,7 @@ class FlirCameraController:
                     logging.info("No FLIR camera found")
                     return
                 self._camera = self._cam_list[0] # use the first available camera
-                self.NodeMapTlDevice = self.camera.GetTLDeviceNodeMap()
+                self.NodeMapTlDevice = self._camera.GetTLDeviceNodeMap()
                 self._camera.Init()
                 self.Nodemap = self._camera.GetNodeMap()
                 self.set_calibration_parameters()
@@ -116,6 +116,7 @@ class FlirCameraController:
 
     def set_calibration_parameters(self) -> None:
         # Retrieve Calibration details
+        try:
             self.NodeCalibrationQueryR = PySpin.CFloatPtr(self.Nodemap.GetNode('R'))
             self._R = self.NodeCalibrationQueryR.GetValue()
 
@@ -155,14 +156,17 @@ class FlirCameraController:
             self._ExtOpticsTransmission = 1
             self._ExtOpticsTemp = self._TAtm
             self._H2O = self._Humidity * np.exp(1.5587 + 0.06939 * self._TAtmC - 0.00027816 * self._TAtmC * self._TAtmC + 0.00000068455 * self._TAtmC * self._TAtmC * self._TAtmC)
-            self.Tau = self._X * np.exp(-np.sqrt(self._Dist) * (self._A1 + self._B1 * np.sqrt(self._H2O))) + (1 - self._X) * np.exp(-np.sqrt(self._Dist) * (self._A2 + self._B2 * np.sqrt(self._H2O)))
+            self._Tau = self._X * np.exp(-np.sqrt(self._Dist) * (self._A1 + self._B1 * np.sqrt(self._H2O))) + (1 - self._X) * np.exp(-np.sqrt(self._Dist) * (self._A2 + self._B2 * np.sqrt(self._H2O)))
             # Pseudo radiance of the reflected environment
-            self.r1 = ((1 - self._emissivity) / self._emissivity) * (self._R / (np.exp(self._B / self._TRefl) - self._F))
+            self._r1 = ((1 - self._emissivity) / self._emissivity) * (self._R / (np.exp(self._B / self._TRefl) - self._F))
             # Pseudo radiance of the atmosphere
-            self.r2 = ((1 - self.Tau) / (self._emissivity * self.Tau)) * (self._R / (np.exp(self._B / self._TAtm) - self._F))
+            self._r2 = ((1 - self._Tau) / (self._emissivity * self._Tau)) * (self._R / (np.exp(self._B / self._TAtm) - self._F))
             # Pseudo radiance of the external optics
-            self.r3 = ((1 - self._ExtOpticsTransmission) / (self._emissivity * self.Tau * self._ExtOpticsTransmission)) * (self._R / (np.exp(self._B / self._ExtOpticsTemp) - self.F))
-            self.K2 = self.r1 + self.r2 + self.r3
+            self._r3 = ((1 - self._ExtOpticsTransmission) / (self._emissivity * self._Tau * self._ExtOpticsTransmission)) * (self._R / (np.exp(self._B / self._ExtOpticsTemp) - self._F))
+            self._K2 = self._r1 + self._r2 + self._r3
+            logging.info("Parameters of camera successfully retrieved")
+        except (PySpin.SpinnakerException, Exception) as e:
+            logging.error(f"Failed to read parameters: {e}")
 
 
     def start_stream(self):
@@ -183,12 +187,7 @@ class FlirCameraController:
             self.AcquisitionModeContinuous = self.NodeAcquisitionModeContinuous.GetValue()
             self.NodeAcquisitionMode.SetIntValue(self.AcquisitionModeContinuous)
             logging.info('Acquisition mode set to continuous...')
-
-            self.camera.BeginAcquisition()
-            
-            # Retrieve Calibration details
-            self.read_calibration_data()
-                
+            self._camera.BeginAcquisition()
             self._streaming = True
             logging.info("Camera started streaming")
         except PySpin.SpinnakerException as e:
@@ -198,17 +197,17 @@ class FlirCameraController:
     def stop_stream(self):
         if self._streaming:
             try:
-                self.camera.EndAcquisition()
+                self._camera.EndAcquisition()
             except Exception as e:
                 logging.error(f"Failed to stop streaming: {e}")
             finally:
                 self._streaming = False
         
 
-    def get_image(self):
+    def get_image(self) -> Optional[np.ndarray]:
         if self._streaming:
             try:
-                self.ImageResult = self.camera.GetNextImage(1000)
+                self.ImageResult = self._camera.GetNextImage(1000)
                 if self.ImageResult.IsIncomplete():
                     print('Image incomplete with image status %d ...' %
                             self.ImageResult.GetImageStatus())
@@ -220,8 +219,8 @@ class FlirCameraController:
                     elif self._ir_type == IRFormatType.LINEAR_100MK:
                         self.ImageTempCelsiusLow = (self.ImageData * 0.1) - 273.15
                     elif self._ir_type == IRFormatType.RADIOMETRIC:
-                        self.ImageRadiance = (self.ImageData - self.J0) / self.J1
-                        self.ImageTemp = (self.B / np.log(self.R / ((self.ImageRadiance / self.Emiss / self.Tau) - self.K2) + self.F)) - 273.15
+                        self.ImageRadiance = (self.ImageData - self._J0) / self._J1
+                        self.ImageTemp = (self._B / np.log(self._R / ((self.ImageRadiance / self._emissivity / self._Tau) - self._K2) + self._F)) - 273.15
                 self.ImageResult.Release()
                 return self.ImageTemp
             except PySpin.SpinnakerException as e:
@@ -230,7 +229,7 @@ class FlirCameraController:
 
 
     def setup_camera(self):
-        self.StreamNodeMap = self.camera.GetTLStreamNodeMap()
+        self.StreamNodeMap = self._camera.GetTLStreamNodeMap()
         self.NodeBufferHandlingMode = PySpin.CEnumerationPtr(self.StreamNodeMap.GetNode('StreamBufferHandlingMode'))
         self.NodePixelFormat = PySpin.CEnumerationPtr(self.Nodemap.GetNode('PixelFormat'))
         self.NodePixelFormatMono16 = PySpin.CEnumEntryPtr(self.NodePixelFormat.GetEntryByName('Mono16'))
