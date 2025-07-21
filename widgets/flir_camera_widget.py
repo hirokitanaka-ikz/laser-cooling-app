@@ -12,6 +12,7 @@ from matplotlib import patches
 from matplotlib.figure import Figure
 import numpy as np
 import logging
+from typing import Optional
 import time
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -240,6 +241,24 @@ class FlirCameraWidget(QGroupBox):
             self.canvas.reference_rect.set_width(value)
         elif self.sender() == self.reference_h_spin:
             self.canvas.reference_rect.set_height(value)
+    
+
+    @property
+    def sample_temperature(self) -> Optional[float]:
+        try:
+            return float(self.temperature_sample_label.text())
+        except (TypeError, Exception) as e:
+            logging.error(f"Failed to read sample temperature for data export: {e}")
+            return None
+    
+
+    @property
+    def reference_temperature(self) -> Optional[float]:
+        try:
+            return float(self.temperature_reference_label.text())
+        except (TypeError, Exception) as e:
+            logging.error(f"Failed to read reference temperature for data export: {e}")
+            return None
 
 
 class ThermalImageCanvas(FigureCanvas):
