@@ -7,6 +7,7 @@ from PyQt6.QtGui import QFont
 from devices.ophir_juno_controller import OphirJunoController
 from pywintypes import com_error
 import logging
+from typing import Optional
 import time
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -146,6 +147,15 @@ class OphirPowerMeterWidget(QGroupBox):
     def change_wavelength(self):
         new_index = self.wavelength_select_combo.currentIndex()
         self.controller.wavelength = new_index
+
+
+    property
+    def power(self) -> Optional[float]:
+        try:
+            return float(self.power_label.text())
+        except (TypeError, Exception) as e:
+            logging.error(f"Failed to read power meter value for data export: {e}")
+            return None
 
 
 class PowerMeterPollingThread(QThread):
