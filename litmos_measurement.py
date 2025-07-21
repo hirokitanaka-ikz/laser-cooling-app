@@ -8,13 +8,13 @@ from typing import Optional
 @dataclass
 class LITMoSMeasurementData(IData):
     timestamp: str
-    sample_temperature: Optional[float]
-    reference_temperature: Optional[float]
-    reference_power: Optional[float]
-    transmitted_power: Optional[float]
-    peak_wavelength: Optional[float]
-    mean_wavelength: Optional[float]
-    rotator_angle: Optional[float]
+    sample_temperature: Optional[float] = None
+    reference_temperature: Optional[float] = None
+    reference_power: Optional[float] = None
+    transmitted_power: Optional[float] = None
+    peak_wavelength: Optional[float] = None
+    mean_wavelength: Optional[float] = None
+    rotator_angle: Optional[float] = None
 
 
     def to_dict(self) -> dict:
