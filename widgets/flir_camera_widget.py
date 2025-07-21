@@ -246,7 +246,8 @@ class FlirCameraWidget(QGroupBox):
     @property
     def sample_temperature(self) -> Optional[float]:
         try:
-            return float(self.temperature_sample_label.text())
+            text = self.temperature_sample_label.text()
+            return float(text[:len("°C")].strip())
         except (TypeError, Exception) as e:
             logging.error(f"Failed to read sample temperature for data export: {e}")
             return None
@@ -255,7 +256,8 @@ class FlirCameraWidget(QGroupBox):
     @property
     def reference_temperature(self) -> Optional[float]:
         try:
-            return float(self.temperature_reference_label.text())
+            text = self.temperature_reference_label.text()
+            return float(text[:len("°C")].strip())
         except (TypeError, Exception) as e:
             logging.error(f"Failed to read reference temperature for data export: {e}")
             return None

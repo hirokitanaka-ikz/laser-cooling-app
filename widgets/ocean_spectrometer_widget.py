@@ -170,7 +170,8 @@ class OceanSpectrometerWidget(QGroupBox):
     @property
     def peak_wavelength(self) -> Optional[float]:
         try:
-            return float(self.peak_wavelength_label.text())
+            text = self.peak_wavelength_label.text()
+            return float(text[:len("nm")].strip())
         except (TypeError, Exception) as e:
             logging.error(f"Failed to read peak wavelength for data export: {e}")
             return None
@@ -179,7 +180,8 @@ class OceanSpectrometerWidget(QGroupBox):
     @property
     def mean_wavelength(self) -> Optional[float]:
         try:
-            return float(self.mean_wavelength_label.text())
+            text = self.mean_wavelength_label.text()
+            return float(text[:len("nm")].strip())
         except (TypeError, Exception) as e:
             logging.error(f"Failed to read mean wavelength for data export: {e}")
             return None
