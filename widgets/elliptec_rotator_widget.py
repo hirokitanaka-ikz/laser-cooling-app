@@ -6,6 +6,7 @@ from PyQt6.QtCore import QThread, pyqtSignal
 import elliptec
 import serial.tools.list_ports
 import logging
+from typing import Optional
 import time
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -135,7 +136,16 @@ class ElliptecRotatorWidget(QGroupBox):
 
     def update_angle_display(self, current_angle:float):
         self.angle_label.setText(f"{current_angle:.2f}°")
+    
 
+    @property
+    def angle(self) -> Optional[float]:
+        try:
+            return float(self.angle_label.text())
+        except (TypeError, Exception) as e:
+            logging.error(f"Failed to read rotator angle for data export: {e}")
+            return None
+        
 
 
 class RotatorPollingThread(QThread):
@@ -162,3 +172,4 @@ class RotatorPollingThread(QThread):
     def stop(self):
         self._running = False
         self.wait()
+    
