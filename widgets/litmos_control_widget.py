@@ -102,10 +102,12 @@ class LitmosControlWidget(QGroupBox):
                 return
             self.record_btn.setText("Stop Record")
             QMessageBox.information(self, "Recording Start", f"save path: \n{self.data_logger.csv_path}\n{self.data_logger.yml_path}\n\nRecording start")
+            logging.info("LITMoS data recording started")
         else:
             self.record_timer.stop()
             self.record_timer = None
             QMessageBox.information(self, "Recording Stop", f"save path: \n{self.data_logger.csv_path}\n{self.data_logger.yml_path}\n\nRecording stop")
+            logging.info("LITMoS data recording stopped")
             self.record_btn.setText("Start Record")
 
 
