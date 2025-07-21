@@ -9,3 +9,8 @@ class IData(ABC):
         All data classes must have a timestamp as an instance property.
         """
         pass
+
+
+    @abstractmethod
+    def to_dict() -> dict:
+        pass

@@ -5,7 +5,6 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import QTimer, QThread, pyqtSignal
 from data_logger import DataLogger
 import pyqtgraph as pg
-import random
 from pathlib import Path
 import logging
 import datetime
@@ -18,10 +17,11 @@ def default_filename() -> str:
     return f"{now}_LITMoS"
 
 
-class LitmosControlPanel(QGroupBox):
+class LitmosControlWidget(QGroupBox):
 
-    def __init__(self, parent=None):
-        super().__init__("LITMoS Measurement Panel", parent)
+    def __init__(self, data_collector, parent=None):
+        super().__init__("LITMoS Measurement Control", parent)
+        self.data_collector = data_collector # data collector instance should be given in main()
         self.record_timer = None
 
         # UI Elements
@@ -108,17 +108,10 @@ class LitmosControlPanel(QGroupBox):
             QMessageBox.information(self, "Recording Stop", f"save path: \n{self.data_logger.csv_path}\n{self.data_logger.yml_path}\n\nRecording stop")
             self.record_btn.setText("Start Record")
 
-    
-    
-    def collect_data(self) -> dict:
-        return {'data1': random.random(),
-                'data2': random.random()
-                }
 
-
-    def write_data(self):
-        data = self.collect_data()
-        self.data_logger.write_csv(data)
+    def write_data(self) -> None:
+        data_object = self.data_collector.collect_data()
+        self.data_logger.write_csv(data_object)
 
 
     def toggle_rotator(self):

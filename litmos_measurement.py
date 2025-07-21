@@ -1,10 +1,12 @@
-from dataclasses import dataclass
+from data_interface import IData
+from dataclasses import dataclass, asdict
 from datetime import datetime
 from typing import Optional
 
 
+
 @dataclass
-class LITMoSMeasurementData:
+class LITMoSMeasurementData(IData):
     timestamp: str
     sample_temperature: Optional[float]
     reference_temperature: Optional[float]
@@ -16,16 +18,7 @@ class LITMoSMeasurementData:
 
 
     def to_dict(self) -> dict:
-        return {
-            "timestamp": self.timestamp,
-            "sample_temperature": self.sample_temperature,
-            "reference_temperature": self.reference_temperature,
-            "reference_power": self.reference_power,
-            "transmitted_power": self.transmitted_power,
-            "peak_wavelength": self.peak_wavelength,
-            "mean_wavelength": self.mean_wavelength,
-            "rotator_angle": self.rotator_angle
-        }
+        return asdict(self)
 
 
 class LITMoSMeasurementCollector:
