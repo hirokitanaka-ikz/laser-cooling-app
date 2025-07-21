@@ -40,7 +40,7 @@ class OphirPowerMeterWidget(QGroupBox):
         self.wavelength_select_combo.currentIndexChanged.connect(self.change_wavelength)
 
 
-        self.power_label = QLabel("0.00")
+        self.power_label = QLabel("---")
         self.power_label.setAlignment(Qt.AlignmentFlag.AlignRight)
         unit_label = QLabel("W")
         unit_label.setAlignment(Qt.AlignmentFlag.AlignLeft)
@@ -149,12 +149,12 @@ class OphirPowerMeterWidget(QGroupBox):
         self.controller.wavelength = new_index
 
 
-    property
+    @property
     def power(self) -> Optional[float]:
         try:
             return float(self.power_label.text())
         except (TypeError, Exception) as e:
-            logging.error(f"Failed to read power meter value for data export: {e}")
+            # logging.error(f"Failed to read power meter value for data export: {e}")
             return None
 
 

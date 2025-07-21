@@ -19,6 +19,7 @@ class LITMoSMeasurementData(IData):
 
     def to_dict(self) -> dict:
         return asdict(self)
+    
 
 
 class LITMoSMeasurementCollector:

@@ -143,7 +143,7 @@ class ElliptecRotatorWidget(QGroupBox):
         try:
             return float(self.angle_label.text())
         except (TypeError, Exception) as e:
-            logging.error(f"Failed to read rotator angle for data export: {e}")
+            # logging.error(f"Failed to read rotator angle for data export: {e}")
             return None
         
 
