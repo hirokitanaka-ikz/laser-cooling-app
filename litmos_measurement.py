@@ -1,4 +1,4 @@
-from data_interface import IData
+from data_interface import IData, IMetaData
 from dataclasses import dataclass, asdict
 from datetime import datetime
 from typing import Optional
@@ -16,6 +16,13 @@ class LITMoSMeasurementData(IData):
     mean_wavelength: Optional[float] = None
     rotator_angle: Optional[float] = None
 
+
+    def to_dict(self) -> dict:
+        return asdict(self)
+
+
+@dataclass
+class LITMoSMetaData(IMetaData):
 
     def to_dict(self) -> dict:
         return asdict(self)

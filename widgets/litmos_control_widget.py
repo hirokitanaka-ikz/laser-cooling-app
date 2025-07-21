@@ -2,7 +2,7 @@ from PyQt6.QtWidgets import (
     QGroupBox, QPushButton, QFileDialog, QMessageBox, QVBoxLayout, QFormLayout,
     QDoubleSpinBox
 )
-from PyQt6.QtCore import QTimer, QThread, pyqtSignal
+from PyQt6.QtCore import QTimer
 from data_logger import DataLogger
 import pyqtgraph as pg
 from pathlib import Path
@@ -108,6 +108,10 @@ class LitmosControlWidget(QGroupBox):
             QMessageBox.information(self, "Recording Stop", f"save path: \n{self.data_logger.csv_path}\n{self.data_logger.yml_path}\n\nRecording stop")
             self.record_btn.setText("Start Record")
 
+
+    def save_meta_data(self) -> None:
+        pass
+    
 
     def write_data(self) -> None:
         data_object = self.data_collector.collect_data()
