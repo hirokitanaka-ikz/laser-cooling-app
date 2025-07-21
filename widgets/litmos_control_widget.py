@@ -3,14 +3,12 @@ from PyQt6.QtWidgets import (
     QDoubleSpinBox
 )
 from PyQt6.QtCore import QTimer, QThread, pyqtSignal
+from data_logger import DataLogger
 import pyqtgraph as pg
-import csv
-import yaml
+import random
 from pathlib import Path
 import logging
-import time
 import datetime
-import sys
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -24,6 +22,7 @@ class LitmosControlPanel(QGroupBox):
 
     def __init__(self, parent=None):
         super().__init__("LITMoS Measurement Panel", parent)
+        self.record_timer = None
 
         # UI Elements
         self.record_interval_spin = QDoubleSpinBox()
@@ -74,59 +73,54 @@ class LitmosControlPanel(QGroupBox):
 
     
     def toggle_record(self):
-        
-        folder = QFileDialog.getExistingDirectory(self, "Select Save Destination Folder")
-        if not folder:
-            QMessageBox.warning(self, "Cancel", "No save folder selected - measurement not starting")
-            return
-        
-        folder_path = Path(folder)
-        default_name = default_filename()
-        csv_path = folder_path / f"{default_name}.csv"
-        yml_path = folder_path / f"{default_name}.yml"
+        if self.record_timer is None:
+            folder = QFileDialog.getExistingDirectory(self, "Select Save Destination Folder")
+            if not folder:
+                QMessageBox.warning(self, "Cancel", "No save folder selected - measurement not starting")
+                return
+            
+            folder_path = Path(folder)
+            default_name = default_filename()
+            csv_path = folder_path / f"{default_name}.csv"
+            yml_path = folder_path / f"{default_name}.yml"
+            self.data_logger = DataLogger(csv_path, yml_path) # create data_logger object
+            # collect meta data
+            meta_data = {'meta_data1': "this is the meta info 1"} # dummy
+            self.data_logger.save_meta_data(meta_data=meta_data)
+            try:
+                self.write_data() # write first data
+            except (TypeError, Exception) as e:
+                logging.error(f"Failed to write data: {e}")
+                return
+            self.record_timer = QTimer(self)
+            self.record_timer.timeout.connect(self.write_data)
+            try:
+                self.record_timer.start(int(self.record_interval_spin.value() * 1000)) # sec -> millisec
+            except TypeError as e:
+                logging.error(f"Failed to start timer: {e}")
+                self.record_timer = None
+                return
+            self.record_btn.setText("Stop Record")
+            QMessageBox.information(self, "Recording Start", f"save path: \n{self.data_logger.csv_path}\n{self.data_logger.yml_path}\n\nRecording start")
+        else:
+            self.record_timer.stop()
+            self.record_timer = None
+            QMessageBox.information(self, "Recording Stop", f"save path: \n{self.data_logger.csv_path}\n{self.data_logger.yml_path}\n\nRecording stop")
+            self.record_btn.setText("Start Record")
 
-        # create CSV file
-        with open(csv_path, "w", newline="", encoding="utf-8") as f_csv:
-            writer = csv.DictWriter(f_csv, fieldnames=["timestamp", "device1", "device2"])
-            writer.writeheader()
+    
+    
+    def collect_data(self) -> dict:
+        return {'data1': random.random(),
+                'data2': random.random()
+                }
 
-        # create YAML file
-        metadata = {
-            "start_time": datetime.datetime.now().isoformat()
-        }
-        with open(yml_path, "w", encoding="utf-8") as f_yml:
-            yaml.dump(metadata, f_yml, allow_unicode=True)
 
-        QMessageBox.information(self, "File Created", f"save path: \n{csv_path}\n{yml_path}\n\nmeasurement starting")
-        
-        # thread start here
+    def write_data(self):
+        data = self.collect_data()
+        self.data_logger.write_csv(data)
+
 
     def toggle_rotator(self):
         pass
 
-
-class RecordThread(QThread):
-
-    ready = pyqtSignal(dict)
-
-    def __init__(self, spectrometer, interval, parent=None):
-        super().__init__(parent)
-        # self.data_collector
-        self.interval = interval
-        self._running = True
-
-    
-    def run(self):
-        while self._running:
-            try:
-                # prepare data here
-                # self.ready.emit(METHOD_NAME_HERE)
-                pass
-            except Exception as e:
-                logging.error(f"collecting data failed: {e}")
-            time.sleep(self.interval)
-
-
-    def stop(self):
-        self._running = False
-        self.wait()
