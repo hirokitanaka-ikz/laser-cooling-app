@@ -9,6 +9,7 @@ import seabreeze
 seabreeze.use('cseabreeze')
 from seabreeze.spectrometers import Spectrometer
 import logging
+from typing import Optional
 import time
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -164,6 +165,24 @@ class OceanSpectrometerWidget(QGroupBox):
     def __del__(self):
         if not self.spectrometer is None:
             self.spectrometer.close()
+    
+
+    @property
+    def peak_wavelength(self) -> Optional[float]:
+        try:
+            return float(self.peak_wavelength_label.text())
+        except (TypeError, Exception) as e:
+            logging.error(f"Failed to read peak wavelength for data export: {e}")
+            return None
+
+    
+    @property
+    def mean_wavelength(self) -> Optional[float]:
+        try:
+            return float(self.mean_wavelength_label.text())
+        except (TypeError, Exception) as e:
+            logging.error(f"Failed to read mean wavelength for data export: {e}")
+            return None
 
 
 class SpectrometerPollingThread(QThread):
