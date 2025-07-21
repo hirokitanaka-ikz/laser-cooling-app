@@ -4,6 +4,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import QThread, pyqtSignal
 from devices.ipg_ylr_laser_controller import IPGYLRLaserController, LaserStatus
+from typing import Optional
 import logging
 import time
 
@@ -179,6 +180,15 @@ class LaserControlWidget(QGroupBox):
         self.laser_status_display.setText("Laser Status: ---")
         self.laser_btn.setText("Turn Laser ON")
         self.guide_btn.setText("Turn Guide ON")
+
+    
+    @property
+    def laser_power(self) -> Optional[float]:
+        try:
+            text = self.power_label.text()
+            return float(text.split(": ")[1][:-len("W")].strip())
+        except (TypeError, Exception) as e:
+            return None
 
 
 class LaserPollingThread(QThread):
