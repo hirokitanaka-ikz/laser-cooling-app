@@ -42,7 +42,7 @@ class LitmosControlWidget(QGroupBox):
         self.record_btn = QPushButton("Start Record")
         self.record_btn.clicked.connect(self.toggle_record)
 
-        self.rotator_btn = QPushButton("Run BRF rotation")
+        self.rotator_btn = QPushButton("Run Rotator")
         self.rotator_btn.clicked.connect(self.toggle_rotator)
         self.rotator_start_spin = QDoubleSpinBox()
         self.rotator_start_spin.setSuffix("°")
@@ -55,7 +55,8 @@ class LitmosControlWidget(QGroupBox):
         self.rotator_step_spin = QDoubleSpinBox()
         self.rotator_step_spin.setSuffix("°")
         self.rotator_step_spin.setRange(0.01, 90.0)
-        self.rotator_stop_spin.setDecimals(1)
+        self.rotator_step_spin.setDecimals(1)
+        self.rotator_step_spin.setValue(0.5)
         self.rotator_time_spin = QDoubleSpinBox()
         self.rotator_time_spin.setSuffix("min")
         self.rotator_time_spin.setRange(0.01, 120.0)
