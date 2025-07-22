@@ -4,6 +4,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import QTimer
 from data_logger import DataLogger
+import numpy as np
 import pyqtgraph as pg
 from pathlib import Path
 import logging
@@ -19,10 +20,14 @@ def default_filename() -> str:
 
 class LitmosControlWidget(QGroupBox):
 
-    def __init__(self, data_collector = None, parent=None):
+    def __init__(self, rotator, data_collector = None, parent=None):
         super().__init__("LITMoS Measurement Control", parent)
+        self.rotator = rotator
         self.data_collector = data_collector # data collector instance should be given in main()
         self.record_timer = None
+        self.rotator_timer = None
+        self.angle_list = None
+        self.angle_index = None
         self.plot_fields = [
             "sample_temperature",
             "reference_temperature",
@@ -42,7 +47,7 @@ class LitmosControlWidget(QGroupBox):
         self.record_btn = QPushButton("Start Record")
         self.record_btn.clicked.connect(self.toggle_record)
 
-        self.rotator_btn = QPushButton("Run Rotator")
+        self.rotator_btn = QPushButton("Run")
         self.rotator_btn.clicked.connect(self.toggle_rotator)
         self.rotator_start_spin = QDoubleSpinBox()
         self.rotator_start_spin.setSuffix("°")
@@ -66,7 +71,7 @@ class LitmosControlWidget(QGroupBox):
         self.plot_widget = pg.PlotWidget()
         self.plot_widget.setBackground("w")
         self.plot_widget.showGrid(x=True, y=True)
-        self.plot_widget.setLabel("bottom", "Time", units="s")
+        self.plot_widget.setLabel("bottom", "Time", units="min")
         self.plot_widget.setLabel("left", "Value")
 
         # layout
@@ -99,6 +104,72 @@ class LitmosControlWidget(QGroupBox):
         for field, color in zip(self.plot_fields, colors):
             curve = self.plot_widget.plot(pen=color, name=field)
             self.curves[field] = curve
+    
+
+    def rotator_widget_enable(self, enabled: bool) -> None:
+        self.rotator_start_spin.setEnabled(enabled)
+        self.rotator_stop_spin.setEnabled(enabled)
+        self.rotator_step_spin.setEnabled(enabled)
+        self.rotator_time_spin.setEnabled(enabled)
+    
+
+    def toggle_rotator(self):
+        if self.rotator_timer is None:
+            # read values from double spin boxes
+            start_angle = self.rotator_start_spin.value()
+            stop_angle = self.rotator_stop_spin.value()
+            step_angle = self.rotator_step_spin.value()
+            duration = self.rotator_time_spin.value()
+            
+            # make a list of angles
+            if start_angle < stop_angle:
+                self.angle_list = np.arange(start_angle, stop_angle + step_angle, step_angle)
+            elif start_angle > stop_angle:
+                self.angle_list = np.arange(start_angle, stop_angle - stop_angle, -stop_angle)
+            else: # start = stop
+                QMessageBox.warning(self, "Invalid Inputs", "start angle = stop angle")
+                return
+            # create QTimer
+            self.rotator_timer = QTimer(self)
+            self.rotator_timer.timeout.connect(self.move_next_angle)
+            self.move_next_angle() # go to start angle
+            self.rotator_timer.start(int(duration * 60 * 1000)) # min to millisec
+            # disable spinboxes and rename toggle button
+            self.rotator_btn.setText("Stop")
+            self.rotator_widget_enable(False)
+        else:
+            self.rotator_timer.stop()
+            self.rotator_timer = None
+            self.angle_list = None
+            logging.info("Rotator stopped")
+            self.rotator_btn.setText("Run")
+            self.rotator_widget_enable(True)
+    
+
+    def __del__(self):
+        try:
+            self.record_timer.stop()
+            self.rotator_timer.stop()
+        except Exception as e:
+            pass
+    
+
+    def move_next_angle(self):
+        if self.angle_index is None:
+            self.angle_index = 0
+
+        if self.angle_index < len(self.angle_list):
+            self.rotator.go_to(self.angle_list[self.angle_index])
+            logging.info(f"Rotator moved to {self.angle_list[self.angle_index]}°")
+            self.angle_index += 1
+        else:
+            self.angle_index = None
+            self.rotator_timer.stop()
+            self.rotator_timer = None
+            self.angle_list = None
+            logging.info("Rotator reached stop angle")
+            self.rotator_btn.setText("Run")
+            self.rotator_widget_enable(True)
 
     
     def toggle_record(self):
@@ -120,6 +191,7 @@ class LitmosControlWidget(QGroupBox):
             except (TypeError, Exception) as e:
                 logging.error(f"Failed to write data: {e}")
                 return
+            self.initialize_chart()
             self.record_timer = QTimer(self)
             self.record_timer.timeout.connect(self.write_data)
             try:
@@ -163,7 +235,4 @@ class LitmosControlWidget(QGroupBox):
         except Exception as e:
             logging.error(f"Failed to plot data: {e}")
 
-
-    def toggle_rotator(self):
-        pass
 

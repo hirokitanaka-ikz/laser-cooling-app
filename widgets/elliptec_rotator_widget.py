@@ -42,7 +42,7 @@ class ElliptecRotatorWidget(QGroupBox):
         self.target_angle_spin.setDecimals(2)
         self.target_angle_spin.setRange(0.0, 360.0) # not sure if this is correct
         self.target_angle_spin.setEnabled(False)
-        self.target_angle_spin.editingFinished.connect(self.go_to) # too much communication with valueChanged. editingFinished signal doesn't emit a value!
+        self.target_angle_spin.editingFinished.connect(self.go_to_target) # too much communication with valueChanged. editingFinished signal doesn't emit a value!
         self.angle_label = QLabel("---")
 
 
@@ -124,7 +124,16 @@ class ElliptecRotatorWidget(QGroupBox):
             logging.error(f"Failed to move to home: {e}")
     
 
-    def go_to(self):
+    def go_to(self, target_angle:float):
+        if self.rotator is None:
+            return
+        try:
+            self.rotator.set_angle(target_angle)
+        except Exception as e:
+            logging.error(f"Failed to move to {target_angle} deg: {e}")
+    
+
+    def go_to_target(self):
         if self.rotator is None:
             return
         try:

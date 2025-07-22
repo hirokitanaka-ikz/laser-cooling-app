@@ -25,10 +25,10 @@ def main():
     # laser_widget = LaserControlWidget(polling_interval=polling_interval)
     # powermeter_widget = OphirPowerMeterWidget(polling_interval=polling_interval)
     # spectrometer_widget = OceanSpectrometerWidget(polling_interval=polling_interval)
-    # rotator_widget = ElliptecRotatorWidget(polling_interval=polling_interval)
+    rotator_widget = ElliptecRotatorWidget(polling_interval=polling_interval)
     # flir_cam_widget = FlirCameraWidget(polling_interval=polling_interval)
 
-    litmos_control_widget = LitmosControlWidget()
+    litmos_control_widget = LitmosControlWidget(rotator=rotator_widget)
 
     # tab_widget.addTab(laser_widget, "Laser")
     # tab_widget.addTab(powermeter_widget, "Power Meter")
