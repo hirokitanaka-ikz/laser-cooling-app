@@ -20,14 +20,10 @@ def default_filename() -> str:
 
 class LitmosControlWidget(QGroupBox):
 
-    def __init__(self, rotator, data_collector = None, parent=None):
+    def __init__(self, data_collector = None, parent=None):
         super().__init__("LITMoS Measurement Control", parent)
-        self.rotator = rotator
         self.data_collector = data_collector # data collector instance should be given in main()
         self.record_timer = None
-        self.rotator_timer = None
-        self.angle_list = None
-        self.angle_index = None
         self.plot_fields = [
             "sample_temperature",
             "reference_temperature",
@@ -47,26 +43,6 @@ class LitmosControlWidget(QGroupBox):
         self.record_btn = QPushButton("Start Record")
         self.record_btn.clicked.connect(self.toggle_record)
 
-        self.rotator_btn = QPushButton("Run")
-        self.rotator_btn.clicked.connect(self.toggle_rotator)
-        self.rotator_start_spin = QDoubleSpinBox()
-        self.rotator_start_spin.setSuffix("°")
-        self.rotator_start_spin.setRange(0.0, 360.0)
-        self.rotator_start_spin.setDecimals(1)
-        self.rotator_stop_spin = QDoubleSpinBox()
-        self.rotator_stop_spin.setSuffix("°")
-        self.rotator_stop_spin.setRange(0.0, 360.0)
-        self.rotator_stop_spin.setDecimals(1)
-        self.rotator_step_spin = QDoubleSpinBox()
-        self.rotator_step_spin.setSuffix("°")
-        self.rotator_step_spin.setRange(0.01, 90.0)
-        self.rotator_step_spin.setDecimals(1)
-        self.rotator_step_spin.setValue(0.5)
-        self.rotator_time_spin = QDoubleSpinBox()
-        self.rotator_time_spin.setSuffix("min")
-        self.rotator_time_spin.setRange(0.01, 120.0)
-        self.rotator_time_spin.setDecimals(1)
-
         # chart
         self.plot_widget = pg.PlotWidget()
         self.plot_widget.setBackground("w")
@@ -78,18 +54,9 @@ class LitmosControlWidget(QGroupBox):
         record_form = QFormLayout()
         record_form.addRow("Record Interval", self.record_interval_spin)
         record_form.addWidget(self.record_btn)
-
-        rotator_form = QFormLayout()
-        rotator_form.addRow("Rotator", self.rotator_btn)
-        rotator_form.addRow("Start Angle", self.rotator_start_spin)
-        rotator_form.addRow("Stop Angle", self.rotator_stop_spin)
-        rotator_form.addRow("Step Angle", self.rotator_step_spin)
-        rotator_form.addRow("Time per Step", self.rotator_time_spin)
         
-
         layout = QVBoxLayout()
         layout.addLayout(record_form)
-        layout.addLayout(rotator_form)
         layout.addWidget(self.plot_widget)
         self.setLayout(layout)
 
@@ -106,70 +73,11 @@ class LitmosControlWidget(QGroupBox):
             self.curves[field] = curve
     
 
-    def rotator_widget_enable(self, enabled: bool) -> None:
-        self.rotator_start_spin.setEnabled(enabled)
-        self.rotator_stop_spin.setEnabled(enabled)
-        self.rotator_step_spin.setEnabled(enabled)
-        self.rotator_time_spin.setEnabled(enabled)
-    
-
-    def toggle_rotator(self):
-        if self.rotator_timer is None:
-            # read values from double spin boxes
-            start_angle = self.rotator_start_spin.value()
-            stop_angle = self.rotator_stop_spin.value()
-            step_angle = self.rotator_step_spin.value()
-            duration = self.rotator_time_spin.value()
-            
-            # make a list of angles
-            if start_angle < stop_angle:
-                self.angle_list = np.arange(start_angle, stop_angle + step_angle, step_angle)
-            elif start_angle > stop_angle:
-                self.angle_list = np.arange(start_angle, stop_angle - stop_angle, -stop_angle)
-            else: # start = stop
-                QMessageBox.warning(self, "Invalid Inputs", "start angle = stop angle")
-                return
-            # create QTimer
-            self.rotator_timer = QTimer(self)
-            self.rotator_timer.timeout.connect(self.move_next_angle)
-            self.move_next_angle() # go to start angle
-            self.rotator_timer.start(int(duration * 60 * 1000)) # min to millisec
-            # disable spinboxes and rename toggle button
-            self.rotator_btn.setText("Stop")
-            self.rotator_widget_enable(False)
-        else:
-            self.rotator_timer.stop()
-            self.rotator_timer = None
-            self.angle_list = None
-            logging.info("Rotator stopped")
-            self.rotator_btn.setText("Run")
-            self.rotator_widget_enable(True)
-    
-
     def __del__(self):
         try:
             self.record_timer.stop()
-            self.rotator_timer.stop()
-        except Exception as e:
+        except Exception:
             pass
-    
-
-    def move_next_angle(self):
-        if self.angle_index is None:
-            self.angle_index = 0
-
-        if self.angle_index < len(self.angle_list):
-            self.rotator.go_to(self.angle_list[self.angle_index])
-            logging.info(f"Rotator moved to {self.angle_list[self.angle_index]}°")
-            self.angle_index += 1
-        else:
-            self.angle_index = None
-            self.rotator_timer.stop()
-            self.rotator_timer = None
-            self.angle_list = None
-            logging.info("Rotator reached stop angle")
-            self.rotator_btn.setText("Run")
-            self.rotator_widget_enable(True)
 
     
     def toggle_record(self):
