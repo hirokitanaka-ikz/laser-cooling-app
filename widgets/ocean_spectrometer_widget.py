@@ -9,6 +9,7 @@ import seabreeze
 seabreeze.use('cseabreeze')
 from seabreeze.spectrometers import Spectrometer
 import logging
+from typing import Optional
 import time
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -16,11 +17,12 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 class OceanSpectrometerWidget(QGroupBox):
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, polling_interval=0.5):
         super().__init__("Ocean Optics Spectrometer Control", parent)
 
         self.spectrometer = None
         self.polling_thread = None
+        self._polling_interval = polling_interval
         self.wavelength = np.array([])
         self.intensity = np.array([])
         self.dark = np.array([])
@@ -52,6 +54,9 @@ class OceanSpectrometerWidget(QGroupBox):
         self.dark_btn.clicked.connect(self.capture_dark)
         self.dark_btn.setEnabled(False)
 
+        self.peak_wavelength_label = QLabel("---")
+        self.mean_wavelength_label = QLabel("---")
+
         # layout
         layout = QVBoxLayout()
 
@@ -69,6 +74,11 @@ class OceanSpectrometerWidget(QGroupBox):
         layout.addWidget(self.start_btn)
         layout.addWidget(self.dark_btn)
 
+        wavelength_form = QFormLayout()
+        wavelength_form.addRow("Peak Wavelength", self.peak_wavelength_label)
+        wavelength_form.addRow("Mean Wavelength", self.mean_wavelength_label)
+        layout.addLayout(wavelength_form)
+
         layout.addWidget(self.plot_widget)
 
         self.setLayout(layout)
@@ -80,7 +90,7 @@ class OceanSpectrometerWidget(QGroupBox):
                 self.spectrometer = Spectrometer.from_first_available()
                 # self.spectrometer.from_first_available()
                 logging.info("Spectrometer connected")
-            except (TypeError, TimeoutError, RuntimeError, OSError) as e:
+            except (seabreeze.cseabreeze._wrapper.SeaBreezeError, TypeError, TimeoutError, RuntimeError, OSError) as e:
                 logging.error(f"Failed to connect spectrometer: {e}")
                 return
             try: # initialize spectrometer
@@ -128,7 +138,7 @@ class OceanSpectrometerWidget(QGroupBox):
         if self.spectrometer is None:
             return
         if self.polling_thread is None:
-            self.polling_thread = SpectrometerPollingThread(self.spectrometer, interval=0.5)
+            self.polling_thread = SpectrometerPollingThread(self.spectrometer, interval=self._polling_interval)
             self.polling_thread.updated.connect(self.update_spectrum)
             self.polling_thread.start()
             self.start_btn.setText("Stop")
@@ -140,14 +150,48 @@ class OceanSpectrometerWidget(QGroupBox):
 
     def update_spectrum(self, intensity_array):
         self.intensity = intensity_array
-        self.plot.setData(self.wavelength, self.intensity - self.dark)
+        intensity_corrected = self.intensity - self.dark
+        self.plot.setData(self.wavelength, intensity_corrected)
+        self.update_wavelength(intensity_corrected)
+
+
+    def update_wavelength(self, intensity_array):
+        peak_wavelength = self.wavelength[np.argmax(intensity_array)]
+        mean_wavelength = np.sum(self.wavelength * intensity_array) / np.sum(intensity_array)
+        self.peak_wavelength_label.setText(f"{peak_wavelength:.2f} nm")
+        self.mean_wavelength_label.setText(f"{mean_wavelength:.2f} nm")
+
+    
+    def __del__(self):
+        if not self.spectrometer is None:
+            self.spectrometer.close()
+    
+
+    @property
+    def peak_wavelength(self) -> Optional[float]:
+        try:
+            text = self.peak_wavelength_label.text()
+            return float(text[:-len("nm")].strip())
+        except (TypeError, Exception) as e:
+            # logging.error(f"Failed to read peak wavelength for data export: {e}")
+            return None
+
+    
+    @property
+    def mean_wavelength(self) -> Optional[float]:
+        try:
+            text = self.mean_wavelength_label.text()
+            return float(text[:-len("nm")].strip())
+        except (TypeError, Exception) as e:
+            # logging.error(f"Failed to read mean wavelength for data export: {e}")
+            return None
 
 
 class SpectrometerPollingThread(QThread):
     
     updated = pyqtSignal(np.ndarray)
 
-    def __init__(self, spectrometer, interval=0.5, parent=None):
+    def __init__(self, spectrometer, interval, parent=None):
         super().__init__(parent)
         self.spectrometer = spectrometer
         self.interval = interval

@@ -1,5 +1,4 @@
 [workspace]
-authors = ["Hiroki Tanaka <hiroki.tanaka@ikz-berlin.de>"]
 channels = ["conda-forge"]
 name = "laser-cooling-app"
 platforms = ["win-64"]
@@ -9,9 +8,10 @@ version = "0.1.0"
 
 [dependencies]
 python = "3.10.*"
-scipy = ">=1.15.2,<2"
-seabreeze = ">=2.10.1,<3"
-numpy = ">=2.2.6,<3"
-pyqtgraph = ">=0.13.7,<0.14"
 pip = ">=25.1.1,<26"
 pywin32 = ">=311,<312"
+pyqtgraph = ">=0.13.7,<0.14"
+seabreeze = ">=2.10.1,<3"
+numpy = "==1.26.4"
+matplotlib = ">=3.10.3,<4"
+pyyaml = ">=6.0.2,<7"

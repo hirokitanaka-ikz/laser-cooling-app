@@ -4,6 +4,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import QThread, pyqtSignal
 from devices.ipg_ylr_laser_controller import IPGYLRLaserController, LaserStatus
+from typing import Optional
 import logging
 import time
 
@@ -16,11 +17,12 @@ PORT = "10001"
 
 class LaserControlWidget(QGroupBox):
     
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, polling_interval=0.5):
         super().__init__("IPG Fiber Laser Control", parent)
 
         self.controller = IPGYLRLaserController()
         self.polling_thread = None
+        self._polling_interval = polling_interval
         
         # Connection input fields
         self.ip_edit = QLineEdit(IP)
@@ -97,7 +99,7 @@ class LaserControlWidget(QGroupBox):
                 self.set_controls_enabled(True)
                 # self.timer.start()
                 # self.update_status()
-                self.polling_thread = LaserPollingThread(self.controller, interval=0.5)
+                self.polling_thread = LaserPollingThread(self.controller, interval=self._polling_interval)
                 self.polling_thread.status_updated.connect(self.update_status_display) # emit polling_thread.status_updated -> execute self.update_status_display
                 self.polling_thread.start()
                 self.ip_edit.setEnabled(False)
@@ -179,12 +181,21 @@ class LaserControlWidget(QGroupBox):
         self.laser_btn.setText("Turn Laser ON")
         self.guide_btn.setText("Turn Guide ON")
 
+    
+    @property
+    def laser_power(self) -> Optional[float]:
+        try:
+            text = self.power_label.text()
+            return float(text.split(": ")[1][:-len("W")].strip())
+        except (TypeError, Exception) as e:
+            return None
+
 
 class LaserPollingThread(QThread):
     
     status_updated = pyqtSignal(dict) # dict type data is given to LaserControlWidget
 
-    def __init__(self, controller, interval=0.5, parent=None):
+    def __init__(self, controller, interval, parent=None):
         super().__init__(parent)
         self.controller = controller
         self.interval = interval

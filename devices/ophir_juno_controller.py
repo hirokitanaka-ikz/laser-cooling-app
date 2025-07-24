@@ -55,14 +55,14 @@ class OphirJunoController:
     
 
     def disconnect(self):
-        try:
-            self._ophir_com.StopAllStreams()
-            self._ophir_com.CloseAll()
-            self._connected = False
-            logging.info(f"Juno disconnected")
-        except com_error as e:
-            logging.error(f"Failed to disconnect Juno")
-            # no log if already disconnected
+            try:
+                self._ophir_com.StopAllStreams()
+                self._ophir_com.CloseAll()
+                self._connected = False
+                logging.info(f"Juno disconnected")
+            except (AttributeError, com_error) as e:
+                logging.error(f"Failed to disconnect Juno or Juno not existing")
+                # no log if already disconnected
 
 
     def __del__(self):

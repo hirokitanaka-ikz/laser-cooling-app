@@ -5,7 +5,9 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 from PyQt6.QtGui import QFont
 from devices.ophir_juno_controller import OphirJunoController
+from pywintypes import com_error
 import logging
+from typing import Optional
 import time
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -13,11 +15,12 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 class OphirPowerMeterWidget(QGroupBox):
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, polling_interval=0.5):
         super().__init__("Ophir Power Meter Control", parent)
 
-        self.controller = OphirJunoController()
+        self.controller = None
         self.last_power = None  # keep latest value here to communicate with data class for saving
+        self._polling_interval = polling_interval
 
         # UI Elements
         self.scan_usb_btn = QPushButton("Scan USB")
@@ -37,7 +40,7 @@ class OphirPowerMeterWidget(QGroupBox):
         self.wavelength_select_combo.currentIndexChanged.connect(self.change_wavelength)
 
 
-        self.power_label = QLabel("0.00")
+        self.power_label = QLabel("---")
         self.power_label.setAlignment(Qt.AlignmentFlag.AlignRight)
         unit_label = QLabel("W")
         unit_label.setAlignment(Qt.AlignmentFlag.AlignLeft)
@@ -80,7 +83,13 @@ class OphirPowerMeterWidget(QGroupBox):
         """
         get usb devices and update combo box
         """
-        self.device_select_combo.addItems(self.controller.device_list)
+        try:
+            self.controller = OphirJunoController()
+            self.device_select_combo.clear()
+            self.device_select_combo.addItems(self.controller.device_list)
+        except com_error as e:
+            logging.error(f"Failed to scan USB devices: {e}")
+
     
 
     def clear_info(self):
@@ -111,7 +120,7 @@ class OphirPowerMeterWidget(QGroupBox):
                     self.wavelength_select_combo.setCurrentIndex(0)
 
                 self.connect_btn.setText("Disconnect")
-                self.polling_thread = PowerMeterPollingThread(self.controller, interval=0.5)
+                self.polling_thread = PowerMeterPollingThread(self.controller, interval=self._polling_interval)
                 self.polling_thread.updated.connect(self.update_value_display)
                 self.polling_thread.start()
         else: # controller connected
@@ -140,11 +149,20 @@ class OphirPowerMeterWidget(QGroupBox):
         self.controller.wavelength = new_index
 
 
+    @property
+    def power(self) -> Optional[float]:
+        try:
+            return float(self.power_label.text())
+        except (TypeError, Exception) as e:
+            # logging.error(f"Failed to read power meter value for data export: {e}")
+            return None
+
+
 class PowerMeterPollingThread(QThread):
 
     updated = pyqtSignal(float)
 
-    def __init__(self, controller, interval=0.5, parent=None):
+    def __init__(self, controller, interval, parent=None):
         super().__init__(parent)
         self.controller = controller
         self.interval = interval
