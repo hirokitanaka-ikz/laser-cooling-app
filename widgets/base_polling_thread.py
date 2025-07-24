@@ -26,6 +26,11 @@ class BasePollingThread(QThread, ABC):
             time.sleep(self.interval)
     
 
+    def stop(self):
+        self._running = False
+        self.wait()
+    
+
     @abstractmethod
     def get_data(self):
         """
