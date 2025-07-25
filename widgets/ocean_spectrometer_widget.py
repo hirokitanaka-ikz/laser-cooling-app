@@ -2,15 +2,15 @@ from PyQt6.QtWidgets import (
     QGroupBox, QPushButton, QLabel, QVBoxLayout,
     QSpinBox, QFormLayout
 )
-from PyQt6.QtCore import QThread, pyqtSignal
+from PyQt6.QtCore import pyqtSignal
 import pyqtgraph as pg
 import numpy as np
 import seabreeze
 seabreeze.use('cseabreeze')
 from seabreeze.spectrometers import Spectrometer
+from widgets.base_polling_thread import BasePollingThread
 import logging
 from typing import Optional
-import time
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -187,27 +187,12 @@ class OceanSpectrometerWidget(QGroupBox):
             return None
 
 
-class SpectrometerPollingThread(QThread):
-    
+class SpectrometerPollingThread(BasePollingThread):
     updated = pyqtSignal(np.ndarray)
 
-    def __init__(self, spectrometer, interval, parent=None):
-        super().__init__(parent)
-        self.spectrometer = spectrometer
-        self.interval = interval
-        self._running = True
-
+    def get_data(self) -> np.ndarray:
+        return self.controller.intensities()
     
-    def run(self):
-        while self._running:
-            try:
-                intensity_array = self.spectrometer.intensities()
-                self.updated.emit(intensity_array)
-            except Exception as e:
-                logging.error(f"Polling spectrum failed: {e}")
-            time.sleep(self.interval)
 
-
-    def stop(self):
-        self._running = False
-        self.wait()
+    def emit_data(self, data:np.ndarray):
+        return self.updated.emit(data)

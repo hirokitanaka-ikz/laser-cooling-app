@@ -2,7 +2,7 @@ from PyQt6.QtWidgets import (
     QGroupBox, QPushButton, QLabel, QVBoxLayout, QHBoxLayout,
     QSpinBox, QFormLayout, QComboBox
 )
-from PyQt6.QtCore import QThread, pyqtSignal
+from PyQt6.QtCore import pyqtSignal
 from devices.flir_camera_controller import FlirCameraController
 from widgets.base_polling_thread import BasePollingThread
 from matplotlib.backends.backend_qtagg import (
@@ -14,7 +14,6 @@ from matplotlib.figure import Figure
 import numpy as np
 import logging
 from typing import Optional
-import time
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 

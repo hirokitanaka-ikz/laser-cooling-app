@@ -2,14 +2,13 @@ from PyQt6.QtWidgets import (
     QGroupBox, QPushButton, QLabel, QVBoxLayout,
     QComboBox, QDoubleSpinBox, QFormLayout, QMessageBox
 )
-from PyQt6.QtCore import QTimer, QThread, pyqtSignal
+from PyQt6.QtCore import QTimer, pyqtSignal
 from PyQt6.QtGui import QFont
 import elliptec
 from widgets.base_polling_thread import BasePollingThread
 import serial.tools.list_ports
 import logging
 from typing import Optional
-import time
 import numpy as np
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
