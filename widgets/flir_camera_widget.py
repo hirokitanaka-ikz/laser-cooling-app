@@ -4,6 +4,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import QThread, pyqtSignal
 from devices.flir_camera_controller import FlirCameraController
+from widgets.base_polling_thread import BasePollingThread
 from matplotlib.backends.backend_qtagg import (
     FigureCanvasQTAgg as FigureCanvas,
     NavigationToolbar2QT as NavigationToolbar
@@ -298,27 +299,13 @@ class ThermalImageCanvas(FigureCanvas):
         self.ax.add_patch(self.reference_rect)
 
 
-class FlirCameraPollingThread(QThread):
+class FlirCameraPollingThread(BasePollingThread):
     updated = pyqtSignal(np.ndarray)
 
-    def __init__(self, controller, interval, parent=None):
-        super().__init__(parent)
-        self.controller = controller
-        self.interval = interval
-        self._running = True
-
+    def get_data(self) -> np.ndarray:
+        return self.controller.get_image()
     
-    def run(self):
-        while self._running:
-            try:
-                image = self.controller.get_image()
-                if not image is None:
-                    self.updated.emit(image)
-            except Exception as e:
-                logging.error(f"Thermal camera polling failed: {e}")
-            time.sleep(self.interval)
 
+    def emit_data(self, data:np.ndarray) -> None:
+        self.updated.emit(data)
 
-    def stop(self):
-        self._running = False
-        self.wait()
