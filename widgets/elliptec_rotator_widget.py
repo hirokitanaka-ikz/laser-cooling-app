@@ -5,6 +5,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import QTimer, QThread, pyqtSignal
 from PyQt6.QtGui import QFont
 import elliptec
+from widgets.base_polling_thread import BasePollingThread
 import serial.tools.list_ports
 import logging
 from typing import Optional
@@ -266,28 +267,14 @@ class ElliptecRotatorWidget(QGroupBox):
             pass
 
 
-class RotatorPollingThread(QThread):
+class RotatorPollingThread(BasePollingThread):
     updated = pyqtSignal(float)
 
-    def __init__(self, rotator, interval, parent=None):
-        super().__init__(parent)
-        self.rotator = rotator
-        self.interval = interval
-        self._running = True
-
+    def get_data(self) -> float:
+        return self.controller.get_angle()
     
-    def run(self):
-        while self._running:
-            try:
-                angle = self.rotator.get_angle()
-                if not angle is None:
-                    self.updated.emit(angle)
-            except Exception as e:
-                logging.error(f"Rotator polling failed: {e}")
-            time.sleep(self.interval)
 
-
-    def stop(self):
-        self._running = False
-        self.wait()
+    def emit_data(self, data:float) -> None:
+        self.updated.emit(data)
+    
     
