@@ -1,10 +1,9 @@
-from PyQt6.Qtcore import QThread
+from PyQt6.QtCore import QThread
 import time
 import logging
-from abc import ABC, abstractmethod
 
 
-class BasePollingThread(QThread, ABC):
+class BasePollingThread(QThread):
     """
     Abstract base class for polling thread
     """
@@ -31,19 +30,17 @@ class BasePollingThread(QThread, ABC):
         self.wait()
     
 
-    @abstractmethod
     def get_data(self):
         """
         method to get data to be emitted
         """
-        pass
+        raise NotImplementedError("Subclasses should implement this method: get_data()")
 
 
-    @abstractmethod
     def emit_data(self, data):
         """
         method to emit signal
         example) self.updated.emit(data)
         *** updated = pyqtSignal([data type]) should be writtin outside of __init__()
         """
-        pass
+        raise NotImplementedError("Subclasses should implement this method: emit_data()")

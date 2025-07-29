@@ -5,6 +5,7 @@ from widgets.ophir_powermeter_widget import OphirPowerMeterWidget
 from widgets.ocean_spectrometer_widget import OceanSpectrometerWidget
 from widgets.elliptec_rotator_widget import ElliptecRotatorWidget
 from widgets.flir_camera_widget import FlirCameraWidget
+from widgets.penningvac_widget import PenningVacWidget
 from widgets.litmos_control_widget import LitmosControlWidget
 from litmos_measurement import LITMoSMeasurementCollector
 
@@ -28,6 +29,8 @@ def main():
     power_meter_widget2 = OphirPowerMeterWidget(polling_interval=polling_interval)
     spectrometer_widget = OceanSpectrometerWidget(polling_interval=polling_interval)
     rotator_widget = ElliptecRotatorWidget(polling_interval=polling_interval)
+    penningvac_widget = PenningVacWidget(polling_interval=polling_interval)
+    
 
     data_collector = LITMoSMeasurementCollector(flir_cam_widget, power_meter_widget1, power_meter_widget2, spectrometer_widget, rotator_widget)
     litmos_widget = LitmosControlWidget(data_collector)
@@ -39,6 +42,7 @@ def main():
     tab_widget.addTab(power_meter_widget2, "Power Meter 2")
     tab_widget.addTab(spectrometer_widget, "Spectrometer")
     tab_widget.addTab(rotator_widget, "Elliptec Rotator")
+    tab_widget.addTab(penningvac_widget, "PenningVac Controller")
     tab_widget.addTab(litmos_widget, "LITMoS Measurement Control")
 
 

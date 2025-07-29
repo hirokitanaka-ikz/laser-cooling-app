@@ -14,7 +14,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 
 class PenningVacWidget(QGroupBox):
-    def __init__(self, controller: PenningvacController, parent=None, polling_interval=10.0):
+    def __init__(self, parent=None, polling_interval=10.0):
         super().__init__("PenningVac", parent)
         self.controller = None
         self.polling_thread = None
