@@ -28,8 +28,12 @@ class PenningVacWidget(QGroupBox):
         self.connect_btn.clicked.connect(self.toggle_connect)
         self.pressure_label = QLabel("---")
         self.pressure_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.unit_label = QLabel("[-]")
-
+        self.unit_label = QLabel("-")
+        font = QFont()
+        font.setPointSize(36)
+        font.setBold(True)
+        self.pressure_label.setFont(font)
+        self.unit_label.setFont(font)
         
         # layout
         layout = QVBoxLayout()
@@ -37,9 +41,10 @@ class PenningVacWidget(QGroupBox):
         layout.addWidget(self.ports_combo)
         layout.addWidget(self.connect_btn)
 
-        display_form = QFormLayout()
-        display_form.addRow("Pressure:", self.pressure_label, self.unit_label)
-        layout.addLayout(display_form)
+        hlayout = QHBoxLayout()
+        hlayout.addWidget(self.pressure_label)
+        hlayout.addWidget(self.unit_label)
+        layout.addLayout(hlayout)
 
         self.setLayout(layout)
 
@@ -78,7 +83,7 @@ class PenningVacWidget(QGroupBox):
                 self.polling_thread.stop()
                 self.polling_thread = None
             self.pressure_label.setText("---")
-            self.unit_label.setText("[-]")
+            self.unit_label.setText("-")
     
 
     def update_pressure(self):
@@ -92,7 +97,7 @@ class PenningVacWidget(QGroupBox):
                 QMessageBox.critical(self, "Error", f"Failed to update pressure: {e}")
         else:
             self.pressure_label.setText("---")
-            self.unit_label.setText("[-]")
+            self.unit_label.setText("-")
     
 
 class PressurePollingThread(BasePollingThread):
