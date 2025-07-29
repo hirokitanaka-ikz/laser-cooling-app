@@ -4,7 +4,6 @@ from datetime import datetime
 from typing import Optional
 
 
-
 @dataclass
 class LITMoSMeasurementData(IData):
     timestamp: str
@@ -26,7 +25,6 @@ class LITMoSMetaData(IMetaData):
 
     def to_dict(self) -> dict:
         return asdict(self)
-    
 
 
 class LITMoSMeasurementCollector:
@@ -49,4 +47,20 @@ class LITMoSMeasurementCollector:
             mean_wavelength = self.spectrometer_widget.mean_wavelength,
             rotator_angle = self.rotator_widget.angle
         )
+    
+    def collect_meta_data(self) -> LITMoSMetaData:
+        """
+        List of information:
+        - FLIR camera
+            - Firmware version
+            - Emissivity setting
+        - Power meter 1/2
+            - Juno info
+            - Sensor head info
+        - Spectrometer
+            - device information (possible to get device id? not implemented in widget)
+        - Elliptec rotator
+            - ???
+        """
+        pass
 
