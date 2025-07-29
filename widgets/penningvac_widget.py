@@ -96,7 +96,7 @@ class PenningVacWidget(QGroupBox):
     
 
 class PressurePollingThread(BasePollingThread):
-    updated = pyqtSignal(tuple[float, str])
+    updated = pyqtSignal(tuple)
     
     def get_data(self) -> tuple[float, str]:
         pressure, unit = self.controller.get_data()
