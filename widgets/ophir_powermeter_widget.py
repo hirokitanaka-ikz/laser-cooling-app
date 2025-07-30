@@ -161,16 +161,20 @@ class OphirPowerMeterWidget(QGroupBox):
 class PowerMeterPollingThread(BasePollingThread):
     updated = pyqtSignal(float)
 
-    def get_data(self) -> float:
+    def get_data(self) -> Optional[float]:
         data = self.controller.get_data() # return list   
         """
         data looks like
         [{'value': 0.0, 'timestamp': 520181089.0, 'status': 0}, {'value': 0.0, 'timestamp': 520181156.0, 'status': 0}, ...]
         """
-        return data[-1]["value"] # return latest power
+        try:
+            return data[-1]["value"] # return latest power
+        except (IndexError, KeyError, TypeError) as e:
+            return None
 
 
     def emit_data(self, data:float):
-        self.updated.emit(data)
+        if data is not None:
+            self.updated.emit(data)
 
     

@@ -1,6 +1,6 @@
 from PyQt6.QtWidgets import (
     QGroupBox, QPushButton, QLabel, QVBoxLayout, QHBoxLayout,
-    QFormLayout, QMessageBox, QComboBox
+    QMessageBox, QComboBox
 )
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QFont
@@ -66,14 +66,15 @@ class PenningVacWidget(QGroupBox):
             try:
                 self.controller = PenningvacController()
                 self.controller.connect(port)
+            except Exception as e:
+                QMessageBox.critical(self, "Error", f"Failed to connect: {e}")
+                return
+            if self.controller.connected:
+                logging.info(f"Connected to PenningVac at {port}")
                 self.connect_btn.setText("Disconnect")
                 self.polling_thread = PressurePollingThread(self.controller, interval=self.polling_interval)
                 self.polling_thread.updated.connect(self.update_pressure)
                 self.polling_thread.start()
-
-            except Exception as e:
-                QMessageBox.critical(self, "Error", f"Failed to create controller: {e}")
-                return
         else:
             # disconnect
             self.controller.disconnect()
@@ -87,7 +88,7 @@ class PenningVacWidget(QGroupBox):
     
 
     def update_pressure(self):
-        if self.controller is not None and self.controller.is_connected:
+        if self.controller is not None and self.controller.connected:
             try:
                 pressure, unit = self.controller.pressure
                 self.pressure_label.setText(f"{pressure:.2e}")
@@ -104,8 +105,8 @@ class PressurePollingThread(BasePollingThread):
     updated = pyqtSignal(tuple)
     
     def get_data(self) -> tuple[float, str]:
-        pressure, unit = self.controller.get_data()
+        pressure, unit = self.controller.pressure
         return pressure, unit
 
-    def emit_data(self, data: tuple[float, str]) -> None:
-        return super().emit_data(data)
+    def emit_data(self, data: tuple[float, str]):
+        self.updated.emit(data)

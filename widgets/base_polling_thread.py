@@ -21,7 +21,7 @@ class BasePollingThread(QThread):
                 if data is not None:
                     self.emit_data(data)
             except Exception as e:
-                logging.error(f"{self.__class__.__name__} polling failed: {e}")
+                pass
             time.sleep(self.interval)
     
 

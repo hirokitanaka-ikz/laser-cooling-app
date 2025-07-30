@@ -29,7 +29,7 @@ def main():
     power_meter_widget2 = OphirPowerMeterWidget(polling_interval=polling_interval)
     spectrometer_widget = OceanSpectrometerWidget(polling_interval=polling_interval)
     rotator_widget = ElliptecRotatorWidget(polling_interval=polling_interval)
-    penningvac_widget = PenningVacWidget(polling_interval=polling_interval)
+    penningvac_widget = PenningVacWidget(polling_interval=10.0)
     
 
     # data_collector = LITMoSMeasurementCollector(flir_cam_widget, power_meter_widget1, power_meter_widget2, spectrometer_widget, rotator_widget)
