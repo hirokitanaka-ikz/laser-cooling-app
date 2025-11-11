@@ -45,7 +45,7 @@ class OphirPowerMeterWidget(QGroupBox):
         unit_label = QLabel("W")
         unit_label.setAlignment(Qt.AlignmentFlag.AlignLeft)
         font = QFont()
-        font.setPointSize(48)
+        font.setPointSize(24)
         font.setBold(True)
         self.power_label.setFont(font)
         self.power_label.setAlignment(Qt.AlignmentFlag.AlignCenter)

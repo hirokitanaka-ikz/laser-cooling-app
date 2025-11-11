@@ -30,7 +30,7 @@ class PenningVacWidget(QGroupBox):
         self.pressure_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.unit_label = QLabel("-")
         font = QFont()
-        font.setPointSize(36)
+        font.setPointSize(24)
         font.setBold(True)
         self.pressure_label.setFont(font)
         self.unit_label.setFont(font)
