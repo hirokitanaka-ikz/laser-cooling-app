@@ -180,10 +180,7 @@ class ElliptecRotatorWidget(QGroupBox):
             self.target_angle_spin.setEnabled(False)
         else:
             # stop timer, clear timer and angle list
-            self.timer.stop()
-            self.timer = None
-            self.angle_list = None
-            self.angle_index = None
+            self.finish_auto_move()
 
 
     def move_next_angle(self):
@@ -194,17 +191,23 @@ class ElliptecRotatorWidget(QGroupBox):
             logging.info(f"Rotator moved to {self.angle_list[self.angle_index]}°")
             self.angle_index += 1
         else:
-            self.angle_index = None
-            self.rotator_timer.stop()
-            self.rotator_timer = None
-            self.angle_list = None
             logging.info("Rotator reached stop angle")
-            self.run_btn.setText("Run")
-            self.start_angle_spin.setEnabled(True)
-            self.stop_angle_spin.setEnabled(True)
-            self.step_angle_spin.setEnabled(True)
-            self.interval_spin.setEnabled(True)
-            self.target_angle_spin.setEnabled(True)
+            self.finish_auto_move()
+    
+
+    def finish_auto_move(self):
+        if self.timer is not None:
+            self.timer.stop()
+            self.timer = None
+        self.angle_list = None
+        self.angle_index = None
+        logging.info("Rotator auto move finished")
+        self.run_btn.setText("Run")
+        self.start_angle_spin.setEnabled(True)
+        self.stop_angle_spin.setEnabled(True)
+        self.step_angle_spin.setEnabled(True)
+        self.interval_spin.setEnabled(True)
+        self.target_angle_spin.setEnabled(True)
     
 
     def enable_control_uis(self, enable:bool):
@@ -215,6 +218,7 @@ class ElliptecRotatorWidget(QGroupBox):
         self.stop_angle_spin.setEnabled(enable)
         self.step_angle_spin.setEnabled(enable)
         self.interval_spin.setEnabled(enable)
+        self.run_btn.setEnabled(enable)
 
 
     def home(self):
