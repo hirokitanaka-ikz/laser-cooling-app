@@ -6,6 +6,7 @@ from PyQt6.QtCore import QTimer
 from data_logger import DataLogger
 import numpy as np
 import pyqtgraph as pg
+from pyqtgraph.Qt import QtWidgets
 from pathlib import Path
 import logging
 from datetime import datetime
@@ -27,8 +28,8 @@ class LitmosControlWidget(QGroupBox):
         self.plot_fields = [
             "sample_temperature",
             "reference_temperature",
-            "reference_power",
-            "transmitted_power",
+            "laser_power1",
+            "laser_power2",
             "peak_wavelength",
             "mean_wavelength",
             "rotator_angle"
@@ -44,11 +45,26 @@ class LitmosControlWidget(QGroupBox):
         self.record_btn.clicked.connect(self.toggle_record)
 
         # chart
-        self.plot_widget = pg.PlotWidget()
-        self.plot_widget.setBackground("w")
-        self.plot_widget.showGrid(x=True, y=True)
-        self.plot_widget.setLabel("bottom", "Time", units="min")
-        self.plot_widget.setLabel("left", "Value")
+        self.layout_widget = pg.GraphicsLayoutWidget()
+        self.layout_widget.setBackground("w")
+        
+        # plot 1 (temperature)
+        self.plot1 = self.layout_widget.addPlot(row=0, col=0)
+        self.plot1.showGrid(x=True, y=True)
+        self.plot1.setLabel('bottom', 'Time', units='min')
+        self.plot1.setLabel('left', 'Temperature', units='°C')
+
+        # plot 2 (laser power)
+        self.plot2 = self.layout_widget.addPlot(row=1, col=0)
+        self.plot2.showGrid(x=True, y=True)
+        self.plot2.setLabel('bottom', 'Time', units='min')
+        self.plot2.setLabel('left', 'Laser Power', units='W')
+
+        # plot 3 (wavelength)
+        self.plot3 = self.layout_widget.addPlot(row=2, col=0)
+        self.plot3.showGrid(x=True, y=True)
+        self.plot3.setLabel('bottom', 'Time', units='min')
+        self.plot3.setLabel('left', 'Wavelength', units='nm')
 
         # layout
         record_form = QFormLayout()
@@ -57,21 +73,28 @@ class LitmosControlWidget(QGroupBox):
         
         layout = QVBoxLayout()
         layout.addLayout(record_form)
-        layout.addWidget(self.plot_widget)
+        layout.addWidget(self.layout_widget)
         self.setLayout(layout)
 
-    
+
     def initialize_chart(self):
-        self.x_data = []  # timestamp as seconds from start
-        self.y_data = {field: [] for field in self.plot_fields}
+        # Prepare data buffers
+        self.x_data = []
+        self.Tsample = []
+        self.Tref = []
+        self.Pref = []
+        self.Ptrans = []
+        self.peakWL = []
+        self.meanWL = []
         self.start_time = None
 
-        colors = ['r', 'g', 'b', 'm', 'c', 'y', 'k']
-        self.curves = {}
-        for field, color in zip(self.plot_fields, colors):
-            curve = self.plot_widget.plot(pen=color, name=field)
-            self.curves[field] = curve
-    
+        self.curve_Tsample = self.plot1.plot(pen='r', name='Sample Temperature')
+        self.curve_Tref = self.plot1.plot(pen='b', name='Reference Temperature')
+        self.curve_Pref = self.plot2.plot(pen='r', name='Reference Power')
+        self.curve_Ptrans = self.plot2.plot(pen='b', name='Transmitted Power')
+        self.curve_peakWL = self.plot3.plot(pen='r', name='Peak Wavelength')
+        self.curve_meanWL = self.plot3.plot(pen='b', name='Mean Wavelength')
+
 
     def __del__(self):
         try:
@@ -92,14 +115,14 @@ class LitmosControlWidget(QGroupBox):
             yml_path = folder_path / f"{default_name}.yml"
             self.data_logger = DataLogger(csv_path, yml_path) # create data_logger object
             # collect meta data
-            meta_data = {'meta_data1': "this is the meta info 1"} # dummy
+            meta_data = {'meta_data1': "this is the meta info 1"} # dummy meta data
             self.data_logger.save_meta_data(meta_data=meta_data)
+            self.initialize_chart()
             try:
                 self.write_data() # write first data
             except (TypeError, Exception) as e:
                 logging.error(f"Failed to write data: {e}")
                 return
-            self.initialize_chart()
             self.record_timer = QTimer(self)
             self.record_timer.timeout.connect(self.write_data)
             try:
@@ -126,6 +149,7 @@ class LitmosControlWidget(QGroupBox):
 
     def write_data(self) -> None:
         data_object = self.data_collector.collect_data()
+
         self.data_logger.write_csv(data_object)
         try:
             timestamp = datetime.fromisoformat(data_object.timestamp)
@@ -133,14 +157,24 @@ class LitmosControlWidget(QGroupBox):
                 self.start_time = timestamp
             elapsed_min = (timestamp - self.start_time).total_seconds() / 60
             self.x_data.append(elapsed_min)
-
-            for field in self.plot_fields:
-                value = data_object.to_dict().get(field, None)
-                self.y_data[field].append(value if value is not None else float ("nan"))
-                self.curves[field].setData(self.x_data, self.y_data[field])
+            self.Tsample.append(data_object.sample_temperature if data_object.sample_temperature is not None else np.nan)
+            self.Tref.append(data_object.reference_temperature if data_object.reference_temperature is not None else np.nan)
+            self.Pref.append(data_object.reference_power if data_object.reference_power is not None else np.nan)
+            self.Ptrans.append(data_object.transmitted_power if data_object.transmitted_power is not None else np.nan)
+            self.peakWL.append(data_object.peak_wavelength if data_object.peak_wavelength is not None else np.nan)
+            self.meanWL.append(data_object.mean_wavelength if data_object.mean_wavelength is not None else np.nan)
+            self.update()
             
-            self.plot_widget.setXRange(max(0, elapsed_min - 60), elapsed_min) # last 60 min
         except Exception as e:
             logging.error(f"Failed to plot data: {e}")
+    
+
+    def update(self):
+        self.curve_Tsample.setData(self.x_data, self.Tsample)
+        self.curve_Tref.setData(self.x_data, self.Tref)
+        self.curve_Pref.setData(self.x_data, self.Pref)
+        self.curve_Ptrans.setData(self.x_data, self.Ptrans)
+        self.curve_peakWL.setData(self.x_data, self.peakWL)
+        self.curve_meanWL.setData(self.x_data, self.meanWL)
 
 
