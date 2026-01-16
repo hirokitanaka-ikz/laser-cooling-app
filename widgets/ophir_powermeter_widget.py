@@ -134,7 +134,7 @@ class OphirPowerMeterWidget(QGroupBox):
     def update_value_display(self, new_value): # check type of new_value!
         try:
             self.last_power = float(new_value)
-            self.power_label.setText(f"{self.last_power:.2f}")
+            self.power_label.setText(f"{self.last_power:.3f}")
         except (TypeError, Exception) as e:
             logging.error(f"Failed to update value display: {e}")
 

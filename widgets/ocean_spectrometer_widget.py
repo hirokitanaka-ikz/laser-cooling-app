@@ -161,8 +161,6 @@ class OceanSpectrometerWidget(QGroupBox):
         if self.intensity.size == 0:
             return
         current_integration_time = self.integration_time_spin.value()
-        if current_integration_time == MAX_INTEGRATION_TIME:
-            return
         max_intensity = np.max(self.intensity)
         if max_intensity > 12500:
             new_integration_time = int(current_integration_time * 0.8)
@@ -173,6 +171,8 @@ class OceanSpectrometerWidget(QGroupBox):
             self.integration_time_spin.setValue(new_integration_time)
             logging.info(f"Auto Exposure: Decreased integration time to {new_integration_time} us")
         elif max_intensity < 5000:
+            if current_integration_time == MAX_INTEGRATION_TIME:
+                return
             new_integration_time = int(current_integration_time * 1.2)
             # _, max_integration_time = self.spectrometer.integration_time_micros_limits
             max_integration_time = MAX_INTEGRATION_TIME

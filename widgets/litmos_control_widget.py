@@ -54,6 +54,21 @@ class LitmosControlWidget(QGroupBox):
         self.plot1.setLabel('bottom', 'Time', units='min')
         self.plot1.setLabel('left', 'Temperature', units='°C')
 
+        self.plot1.showAxis('right')
+        self.plot1.getAxis('right').setLabel('Relative Temperature', units='°C')
+        self.rel_temp_vb = pg.ViewBox()
+        self.plot1.scene().addItem(self.rel_temp_vb)
+        self.plot1.getAxis('right').linkToView(self.rel_temp_vb)
+        self.rel_temp_vb.setXLink(self.plot1)
+
+        def _update_views():
+            self.rel_temp_vb.setGeometry(self.plot1.getViewBox().sceneBoundingRect())
+            self.rel_temp_vb.linkedViewChanged(self.plot1.getViewBox(), self.rel_temp_vb.XAxis)
+
+        self.plot1.getViewBox().sigResized.connect(_update_views)
+        _update_views()
+        
+
         # plot 2 (laser power)
         self.plot2 = self.layout_widget.addPlot(row=1, col=0)
         self.plot2.showGrid(x=True, y=True)
@@ -86,6 +101,7 @@ class LitmosControlWidget(QGroupBox):
         self.Ptrans = []
         self.peakWL = []
         self.meanWL = []
+        self.rotator = []
         self.start_time = None
 
         self.curve_Tsample = self.plot1.plot(pen='r', name='Sample Temperature')
@@ -94,9 +110,9 @@ class LitmosControlWidget(QGroupBox):
         self.curve_Ptrans = self.plot2.plot(pen='b', name='Transmitted Power')
         self.curve_peakWL = self.plot3.plot(pen='r', name='Peak Wavelength')
         self.curve_meanWL = self.plot3.plot(pen='b', name='Mean Wavelength')
-
-
-    def __del__(self):
+        self.relTemp = []                        # data buffer
+        self.curve_relTemp = pg.PlotCurveItem(pen='g')
+        self.rel_temp_vb.addItem(self.curve_relTemp)
         try:
             self.record_timer.stop()
         except Exception:
@@ -163,6 +179,7 @@ class LitmosControlWidget(QGroupBox):
             self.Ptrans.append(data_object.transmitted_power if data_object.transmitted_power is not None else np.nan)
             self.peakWL.append(data_object.peak_wavelength if data_object.peak_wavelength is not None else np.nan)
             self.meanWL.append(data_object.mean_wavelength if data_object.mean_wavelength is not None else np.nan)
+            self.relTemp.append((data_object.sample_temperature - data_object.reference_temperature) if (data_object.sample_temperature is not None and data_object.reference_temperature is not None) else np.nan)
             self.update()
             
         except Exception as e:
@@ -172,9 +189,11 @@ class LitmosControlWidget(QGroupBox):
     def update(self):
         self.curve_Tsample.setData(self.x_data, self.Tsample)
         self.curve_Tref.setData(self.x_data, self.Tref)
+        self.curve_relTemp.setData(self.x_data, self.relTemp)
         self.curve_Pref.setData(self.x_data, self.Pref)
         self.curve_Ptrans.setData(self.x_data, self.Ptrans)
         self.curve_peakWL.setData(self.x_data, self.peakWL)
         self.curve_meanWL.setData(self.x_data, self.meanWL)
+        
 
 

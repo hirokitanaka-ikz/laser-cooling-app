@@ -16,12 +16,15 @@ def main():
 
     win = QWidget()
     win.setWindowTitle("Laser Cooling App")
-    win.resize(800, 800)
-    main_layout = QHBoxLayout()
+    win.resize(1800, 1000)
+    laytout1 = QHBoxLayout()
     layout_left = QVBoxLayout()
     layout_center = QVBoxLayout()
     layout_right = QVBoxLayout()
-    tab_widget = QTabWidget()
+    layout2 = QVBoxLayout()
+    tabs = QTabWidget()
+    tab1 = QWidget()
+    tab2 = QWidget()
 
     polling_interval = 0.5 # sec
 
@@ -29,26 +32,39 @@ def main():
     power_meter_widget1 = OphirPowerMeterWidget(polling_interval=polling_interval)
     power_meter_widget2 = OphirPowerMeterWidget(polling_interval=polling_interval)
     spectrometer_widget = OceanSpectrometerWidget(polling_interval=polling_interval)
-    rotator_widget = ElliptecRotatorWidget(polling_interval=polling_interval)
+    rotator_widget = ElliptecRotatorWidget(polling_interval=2.0)
     penningvac_widget = PenningVacWidget(polling_interval=10.0)
     
-    data_collector = LITMoSMeasurementCollector(flir_cam_widget, power_meter_widget1, power_meter_widget2, spectrometer_widget, rotator_widget)
+    data_collector = LITMoSMeasurementCollector(
+        power_meter_widget1 = power_meter_widget1,
+        power_meter_widget2 = power_meter_widget2,
+        penningvac_widget = penningvac_widget,
+        spectrometer_widget = spectrometer_widget,
+        rotator_widget = rotator_widget,
+        flir_cam_widget = flir_cam_widget
+        )
     litmos_widget = LitmosControlWidget(data_collector)
 
     layout_left.addWidget(power_meter_widget1)
     layout_left.addWidget(power_meter_widget2)
-    layout_left.addWidget(flir_cam_widget)
+    layout_left.addWidget(penningvac_widget)
     layout_center.addWidget(rotator_widget)
     layout_center.addWidget(spectrometer_widget)
-    layout_right.addWidget(penningvac_widget)
-    layout_right.addWidget(litmos_widget)
-    main_layout.addLayout(layout_left)
-    main_layout.addLayout(layout_center)
-    main_layout.addLayout(layout_right)
-    tab_widget.addWidget(QWidget().setLayout(main_layout), "Main")
-    tab_widget.addTab(litmos_widget, "LITMoS Measurement Control")
+    layout_right.addWidget(flir_cam_widget)
+    laytout1.addLayout(layout_left)
+    laytout1.addLayout(layout_center)
+    laytout1.addLayout(layout_right)
 
-    win.setLayout(tab_widget)
+    tab1.setLayout(laytout1)
+    layout2.addWidget(litmos_widget)
+    tab2.setLayout(layout2)
+
+    tabs.addTab(tab1, "Control")
+    tabs.addTab(tab2, "LITMoS Measurement")
+
+    main_layout = QVBoxLayout()
+    main_layout.addWidget(tabs)
+    win.setLayout(main_layout)
     win.show()
 
     app.exec()

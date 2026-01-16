@@ -256,10 +256,15 @@ class ElliptecRotatorWidget(QGroupBox):
 
     @property
     def angle(self) -> Optional[float]:
+        text = self.angle_label.text().strip()
+        # return None if label not yet initialized
+        if not text or text == '---':
+            return None
+        # remove degree symbol and extra whitespace, then parse
         try:
-            return float(self.angle_label.text())
-        except (TypeError, Exception) as e:
-            # logging.error(f"Failed to read rotator angle for data export: {e}")
+            value = text.replace('°', '').strip()
+            return float(value)
+        except (TypeError, ValueError):
             return None
     
 

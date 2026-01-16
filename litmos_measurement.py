@@ -28,12 +28,13 @@ class LITMoSMetaData(IMetaData):
 
 
 class LITMoSMeasurementCollector:
-    def __init__(self, flir_cam_widget, power_meter_widget1, power_meter_widget2, spectrometer_widget, rotator_widget):
-        self.flir_cam_widget = flir_cam_widget
+    def __init__(self, power_meter_widget1, power_meter_widget2, penningvac_widget, rotator_widget, spectrometer_widget, flir_cam_widget):
         self.power_meter_widget1 = power_meter_widget1
         self.power_meter_widget2 = power_meter_widget2
+        self.penningvac_widget = penningvac_widget
+        self.rotator_widget = rotator_widget        
         self.spectrometer_widget = spectrometer_widget
-        self.rotator_widget = rotator_widget
+        self.flir_cam_widget = flir_cam_widget
 
 
     def collect_data(self) -> LITMoSMeasurementData:
