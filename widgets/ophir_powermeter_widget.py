@@ -1,14 +1,14 @@
 from PyQt6.QtWidgets import (
     QGroupBox, QPushButton, QLabel, QVBoxLayout, QHBoxLayout,
-    QFormLayout, QMessageBox, QLineEdit, QComboBox
+    QFormLayout, QMessageBox, QComboBox
 )
-from PyQt6.QtCore import Qt, QThread, pyqtSignal
+from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QFont
 from devices.ophir_juno_controller import OphirJunoController
 from pywintypes import com_error
+from widgets.base_polling_thread import BasePollingThread
 import logging
 from typing import Optional
-import time
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -45,7 +45,7 @@ class OphirPowerMeterWidget(QGroupBox):
         unit_label = QLabel("W")
         unit_label.setAlignment(Qt.AlignmentFlag.AlignLeft)
         font = QFont()
-        font.setPointSize(48)
+        font.setPointSize(24)
         font.setBold(True)
         self.power_label.setFont(font)
         self.power_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -134,7 +134,7 @@ class OphirPowerMeterWidget(QGroupBox):
     def update_value_display(self, new_value): # check type of new_value!
         try:
             self.last_power = float(new_value)
-            self.power_label.setText(f"{self.last_power:.2f}")
+            self.power_label.setText(f"{self.last_power:.3f}")
         except (TypeError, Exception) as e:
             logging.error(f"Failed to update value display: {e}")
 
@@ -158,37 +158,23 @@ class OphirPowerMeterWidget(QGroupBox):
             return None
 
 
-class PowerMeterPollingThread(QThread):
-
+class PowerMeterPollingThread(BasePollingThread):
     updated = pyqtSignal(float)
 
-    def __init__(self, controller, interval, parent=None):
-        super().__init__(parent)
-        self.controller = controller
-        self.interval = interval
-        self._running = True
-
-    
-    def run(self):
-        while self._running:
-            try:
-                if self.controller.connected:
-                    data = self.controller.get_data() # return list
-                    """
-                    data looks like
-                    [{'value': 0.0, 'timestamp': 520181089.0, 'status': 0}, {'value': 0.0, 'timestamp': 520181156.0, 'status': 0}, ...]
-                    """
-                    if data: # if list is not empty
-                        newest_power = data[-1]["value"]
-                        self.updated.emit(newest_power)
-            except Exception as e:
-                logging.error(f"Polling power meter data failed: {e}")
-            time.sleep(self.interval)
+    def get_data(self) -> Optional[float]:
+        data = self.controller.get_data() # return list   
+        """
+        data looks like
+        [{'value': 0.0, 'timestamp': 520181089.0, 'status': 0}, {'value': 0.0, 'timestamp': 520181156.0, 'status': 0}, ...]
+        """
+        try:
+            return data[-1]["value"] # return latest power
+        except (IndexError, KeyError, TypeError) as e:
+            return None
 
 
-    def stop(self):
-        self._running = False
-        self.wait()
-
+    def emit_data(self, data:float):
+        if data is not None:
+            self.updated.emit(data)
 
     

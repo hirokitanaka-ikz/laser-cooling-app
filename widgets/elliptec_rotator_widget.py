@@ -2,13 +2,13 @@ from PyQt6.QtWidgets import (
     QGroupBox, QPushButton, QLabel, QVBoxLayout,
     QComboBox, QDoubleSpinBox, QFormLayout, QMessageBox
 )
-from PyQt6.QtCore import QTimer, QThread, pyqtSignal
+from PyQt6.QtCore import QTimer, pyqtSignal
 from PyQt6.QtGui import QFont
 import elliptec
+from widgets.base_polling_thread import BasePollingThread
 import serial.tools.list_ports
 import logging
 from typing import Optional
-import time
 import numpy as np
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -180,10 +180,7 @@ class ElliptecRotatorWidget(QGroupBox):
             self.target_angle_spin.setEnabled(False)
         else:
             # stop timer, clear timer and angle list
-            self.timer.stop()
-            self.timer = None
-            self.angle_list = None
-            self.angle_index = None
+            self.finish_auto_move()
 
 
     def move_next_angle(self):
@@ -194,17 +191,23 @@ class ElliptecRotatorWidget(QGroupBox):
             logging.info(f"Rotator moved to {self.angle_list[self.angle_index]}°")
             self.angle_index += 1
         else:
-            self.angle_index = None
-            self.rotator_timer.stop()
-            self.rotator_timer = None
-            self.angle_list = None
             logging.info("Rotator reached stop angle")
-            self.run_btn.setText("Run")
-            self.start_angle_spin.setEnabled(True)
-            self.stop_angle_spin.setEnabled(True)
-            self.step_angle_spin.setEnabled(True)
-            self.interval_spin.setEnabled(True)
-            self.target_angle_spin.setEnabled(True)
+            self.finish_auto_move()
+    
+
+    def finish_auto_move(self):
+        if self.timer is not None:
+            self.timer.stop()
+            self.timer = None
+        self.angle_list = None
+        self.angle_index = None
+        logging.info("Rotator auto move finished")
+        self.run_btn.setText("Run")
+        self.start_angle_spin.setEnabled(True)
+        self.stop_angle_spin.setEnabled(True)
+        self.step_angle_spin.setEnabled(True)
+        self.interval_spin.setEnabled(True)
+        self.target_angle_spin.setEnabled(True)
     
 
     def enable_control_uis(self, enable:bool):
@@ -215,6 +218,7 @@ class ElliptecRotatorWidget(QGroupBox):
         self.stop_angle_spin.setEnabled(enable)
         self.step_angle_spin.setEnabled(enable)
         self.interval_spin.setEnabled(enable)
+        self.run_btn.setEnabled(enable)
 
 
     def home(self):
@@ -252,10 +256,15 @@ class ElliptecRotatorWidget(QGroupBox):
 
     @property
     def angle(self) -> Optional[float]:
+        text = self.angle_label.text().strip()
+        # return None if label not yet initialized
+        if not text or text == '---':
+            return None
+        # remove degree symbol and extra whitespace, then parse
         try:
-            return float(self.angle_label.text())
-        except (TypeError, Exception) as e:
-            # logging.error(f"Failed to read rotator angle for data export: {e}")
+            value = text.replace('°', '').strip()
+            return float(value)
+        except (TypeError, ValueError):
             return None
     
 
@@ -266,28 +275,14 @@ class ElliptecRotatorWidget(QGroupBox):
             pass
 
 
-class RotatorPollingThread(QThread):
+class RotatorPollingThread(BasePollingThread):
     updated = pyqtSignal(float)
 
-    def __init__(self, rotator, interval, parent=None):
-        super().__init__(parent)
-        self.rotator = rotator
-        self.interval = interval
-        self._running = True
-
+    def get_data(self) -> float:
+        return self.controller.get_angle()
     
-    def run(self):
-        while self._running:
-            try:
-                angle = self.rotator.get_angle()
-                if not angle is None:
-                    self.updated.emit(angle)
-            except Exception as e:
-                logging.error(f"Rotator polling failed: {e}")
-            time.sleep(self.interval)
 
-
-    def stop(self):
-        self._running = False
-        self.wait()
+    def emit_data(self, data:float) -> None:
+        self.updated.emit(data)
+    
     

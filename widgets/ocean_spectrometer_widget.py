@@ -1,18 +1,20 @@
 from PyQt6.QtWidgets import (
     QGroupBox, QPushButton, QLabel, QVBoxLayout,
-    QSpinBox, QFormLayout
+    QSpinBox, QFormLayout, QCheckBox
 )
-from PyQt6.QtCore import QThread, pyqtSignal
+from PyQt6.QtCore import pyqtSignal
 import pyqtgraph as pg
 import numpy as np
 import seabreeze
 seabreeze.use('cseabreeze')
 from seabreeze.spectrometers import Spectrometer
+from widgets.base_polling_thread import BasePollingThread
 import logging
 from typing import Optional
-import time
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+MAX_INTEGRATION_TIME = 500000  # us (500 ms)
 
 
 class OceanSpectrometerWidget(QGroupBox):
@@ -46,6 +48,9 @@ class OceanSpectrometerWidget(QGroupBox):
         self.integration_time_spin.valueChanged.connect(self.set_integration_time)
         self.integration_time_spin.setEnabled(False)
 
+        self.auto_exposure_checkbox = QCheckBox("Auto Exposure")
+        self.auto_exposure_checkbox.setChecked(False)
+
         self.start_btn = QPushButton("Start")
         self.start_btn.clicked.connect(self.start)
         self.start_btn.setEnabled(False)
@@ -59,7 +64,6 @@ class OceanSpectrometerWidget(QGroupBox):
 
         # layout
         layout = QVBoxLayout()
-
         layout.addWidget(self.connect_btn)
 
         info_form = QFormLayout()
@@ -70,6 +74,7 @@ class OceanSpectrometerWidget(QGroupBox):
         parameter_from = QFormLayout()
         parameter_from.addRow("Integration Time:", self.integration_time_spin)
         layout.addLayout(parameter_from)
+        layout.addWidget(self.auto_exposure_checkbox)
 
         layout.addWidget(self.start_btn)
         layout.addWidget(self.dark_btn)
@@ -148,16 +153,48 @@ class OceanSpectrometerWidget(QGroupBox):
             self.start_btn.setText("Start")
     
 
+    def adjust_exposure_time(self):
+        if self.spectrometer is None:
+            return
+        if not self.auto_exposure_checkbox.isChecked():
+            return
+        if self.intensity.size == 0:
+            return
+        current_integration_time = self.integration_time_spin.value()
+        max_intensity = np.max(self.intensity)
+        if max_intensity > 12500:
+            new_integration_time = int(current_integration_time * 0.8)
+            min_integration_time, _ = self.spectrometer.integration_time_micros_limits
+            if new_integration_time < min_integration_time:
+                new_integration_time = min_integration_time
+            self.set_integration_time(new_integration_time)
+            self.integration_time_spin.setValue(new_integration_time)
+            logging.info(f"Auto Exposure: Decreased integration time to {new_integration_time} us")
+        elif max_intensity < 5000:
+            if current_integration_time == MAX_INTEGRATION_TIME:
+                return
+            new_integration_time = int(current_integration_time * 1.2)
+            # _, max_integration_time = self.spectrometer.integration_time_micros_limits
+            max_integration_time = MAX_INTEGRATION_TIME
+            if new_integration_time > max_integration_time:
+                new_integration_time = max_integration_time
+            self.set_integration_time(new_integration_time)
+            self.integration_time_spin.setValue(new_integration_time)
+            logging.info(f"Auto Exposure: Increased integration time to {new_integration_time} us")
+
+
     def update_spectrum(self, intensity_array):
         self.intensity = intensity_array
         intensity_corrected = self.intensity - self.dark
         self.plot.setData(self.wavelength, intensity_corrected)
         self.update_wavelength(intensity_corrected)
+        self.adjust_exposure_time()
 
 
     def update_wavelength(self, intensity_array):
         peak_wavelength = self.wavelength[np.argmax(intensity_array)]
-        mean_wavelength = np.sum(self.wavelength * intensity_array) / np.sum(intensity_array)
+        diff_wavelength = np.diff(self.wavelength, prepend=self.wavelength[0])
+        mean_wavelength = np.sum(self.wavelength * intensity_array * diff_wavelength) / np.sum(intensity_array * diff_wavelength)
         self.peak_wavelength_label.setText(f"{peak_wavelength:.2f} nm")
         self.mean_wavelength_label.setText(f"{mean_wavelength:.2f} nm")
 
@@ -187,27 +224,12 @@ class OceanSpectrometerWidget(QGroupBox):
             return None
 
 
-class SpectrometerPollingThread(QThread):
-    
+class SpectrometerPollingThread(BasePollingThread):
     updated = pyqtSignal(np.ndarray)
 
-    def __init__(self, spectrometer, interval, parent=None):
-        super().__init__(parent)
-        self.spectrometer = spectrometer
-        self.interval = interval
-        self._running = True
-
+    def get_data(self) -> np.ndarray:
+        return self.controller.intensities()
     
-    def run(self):
-        while self._running:
-            try:
-                intensity_array = self.spectrometer.intensities()
-                self.updated.emit(intensity_array)
-            except Exception as e:
-                logging.error(f"Polling spectrum failed: {e}")
-            time.sleep(self.interval)
 
-
-    def stop(self):
-        self._running = False
-        self.wait()
+    def emit_data(self, data:np.ndarray):
+        return self.updated.emit(data)
